@@ -14,7 +14,7 @@ wheels = [
 [[package]]
 name = "eu5miner"
 version = "0.5.0"
-source = { git = "https://github.com/Vality/EU5Miner.git?rev=main#4e9e5729f1a6b388a8ad0edda81aea762df3062b" }
+source = { git = "https://github.com/Vality/EU5Miner.git?rev=main#2e9e41c4699400b7cf46dcea1c0e0f16df296bd1" }
 
 [[package]]
 name = "eu5miner-mcp"
