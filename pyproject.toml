@@ -1,0 +1,63 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "eu5miner-mcp"
+version = "0.1.0"
+description = "MCP server foundation built on the EU5Miner library"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [
+  { name = "Val G and GitHub Copilot" },
+]
+dependencies = [
+  "eu5miner @ git+https://github.com/Vality/EU5Miner.git@main",
+]
+
+[project.optional-dependencies]
+dev = [
+  "mypy>=1.15.0",
+  "pytest>=8.3.0",
+  "ruff>=0.11.0",
+]
+
+[project.scripts]
+eu5miner-mcp = "eu5miner_mcp.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/eu5miner_mcp"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+  "E",
+  "F",
+  "I",
+  "UP",
+  "B",
+  "SIM",
+]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["eu5miner_mcp"]
+warn_unused_configs = true
+disable_error_code = ["import-untyped"]
+
+[[tool.mypy.overrides]]
+module = ["eu5miner"]
+ignore_missing_imports = true
