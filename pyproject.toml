@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "eu5miner-mcp"
-version = "0.1.0"
-description = "MCP server foundation built on the EU5Miner library"
+version = "0.5.0"
+description = "Public-preview read-only MCP shell built on the EU5Miner library"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
@@ -13,7 +13,7 @@ authors = [
   { name = "Val G and GitHub Copilot" },
 ]
 dependencies = [
-  "eu5miner @ git+https://github.com/Vality/EU5Miner.git@main",
+  "eu5miner @ git+https://github.com/Vality/EU5Miner.git@v0.5.0",
 ]
 
 [project.optional-dependencies]

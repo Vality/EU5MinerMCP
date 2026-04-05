@@ -14,11 +14,11 @@ wheels = [
 [[package]]
 name = "eu5miner"
 version = "0.5.0"
-source = { git = "https://github.com/Vality/EU5Miner.git?rev=main#2d3d05fb2579d997d100ee68b81494f188a91fc1" }
+source = { git = "https://github.com/Vality/EU5Miner.git?rev=v0.5.0#93be5cdcaf8ca423604092656c1aa5adf4297ca8" }
 
 [[package]]
 name = "eu5miner-mcp"
-version = "0.1.0"
+version = "0.5.0"
 source = { editable = "." }
 dependencies = [
     { name = "eu5miner" },
@@ -33,7 +33,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "eu5miner", git = "https://github.com/Vality/EU5Miner.git?rev=main" },
+    { name = "eu5miner", git = "https://github.com/Vality/EU5Miner.git?rev=v0.5.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.15.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.11.0" },
