@@ -12,6 +12,7 @@ from eu5miner import GameInstall
 from eu5miner_mcp.models import RegisteredTool, ToolDescriptor, ToolResponse
 from eu5miner_mcp.serializers import (
     serialize_entity_detail,
+    serialize_entity_links,
     serialize_entity_search_result,
     serialize_entity_system_list,
 )
@@ -79,11 +80,18 @@ def describe_entity(request: DescribeEntityRequest) -> inspection.EntityDetail:
     )
 
 
+def list_entity_links(
+    request: DescribeEntityRequest,
+) -> tuple[inspection.EntityReference, ...]:
+    return describe_entity(request).references
+
+
 def describe_entity_tools() -> tuple[ToolDescriptor, ...]:
     return (
         _LIST_ENTITY_SYSTEMS_TOOL.descriptor,
         _FIND_ENTITY_TOOL.descriptor,
         _DESCRIBE_ENTITY_TOOL.descriptor,
+        _LIST_ENTITY_LINKS_TOOL.descriptor,
     )
 
 
@@ -92,6 +100,7 @@ def get_entity_tools() -> tuple[RegisteredTool, ...]:
         _LIST_ENTITY_SYSTEMS_TOOL,
         _FIND_ENTITY_TOOL,
         _DESCRIBE_ENTITY_TOOL,
+        _LIST_ENTITY_LINKS_TOOL,
     )
 
 
@@ -154,18 +163,31 @@ def _invoke_describe_entity(arguments: Mapping[str, object] | None = None) -> To
     )
     lines.append("References:")
     if detail.references:
-        lines.extend(
-            (
-                f"- {reference.role} -> {reference.system}/"
-                f"{reference.entity_kind}/{reference.target_name}"
-            )
-            for reference in detail.references
-        )
+        lines.extend(f"- {_format_entity_reference(reference)}" for reference in detail.references)
     else:
         lines.append("- (none)")
     return ToolResponse(
         text="\n".join(lines),
         structured_content=serialize_entity_detail(detail),
+    )
+
+
+def _invoke_list_entity_links(arguments: Mapping[str, object] | None = None) -> ToolResponse:
+    request = _parse_describe_entity_request(arguments)
+    detail = describe_entity(request)
+    lines = [
+        (
+            f"Entity links: {detail.summary.system}/{detail.summary.entity_kind}/"
+            f"{detail.summary.name}"
+        )
+    ]
+    if detail.references:
+        lines.extend(f"- {_format_entity_reference(reference)}" for reference in detail.references)
+    else:
+        lines.append("- (none)")
+    return ToolResponse(
+        text="\n".join(lines),
+        structured_content=serialize_entity_links(detail),
     )
 
 
@@ -224,6 +246,13 @@ def _format_browse_value(value: inspection.BrowseValue) -> str:
     return str(value)
 
 
+def _format_entity_reference(reference: inspection.EntityReference) -> str:
+    return (
+        f"{reference.role} -> {reference.system}/"
+        f"{reference.entity_kind}/{reference.target_name}"
+    )
+
+
 def _optional_path(value: object) -> Path | None:
     if value is None:
         return None
@@ -244,6 +273,31 @@ def _coerce_path(value: object) -> Path:
     if isinstance(value, str):
         return Path(value)
     raise TypeError(f"Expected a path-like string, got {type(value).__name__}")
+
+
+_ENTITY_LOOKUP_INPUT_SCHEMA: dict[str, object] = {
+    "type": "object",
+    "properties": {
+        "install_root": {
+            "type": ["string", "null"],
+            "description": "Optional explicit EU5 install root.",
+        },
+        "system": {
+            "type": "string",
+            "enum": [system.name for system in inspection.list_entity_systems()],
+        },
+        "name": {
+            "type": "string",
+            "description": "Exact entity name within the chosen system.",
+        },
+        "mod_roots": {
+            "type": "array",
+            "description": "Optional extra mod roots layered after vanilla and DLC.",
+            "items": {"type": "string"},
+        },
+    },
+    "required": ["system", "name"],
+}
 
 
 _LIST_ENTITY_SYSTEMS_TOOL = RegisteredTool(
@@ -305,29 +359,20 @@ _DESCRIBE_ENTITY_TOOL = RegisteredTool(
             "Return the summary, browsable fields, and linked references for one entity "
             "from the core inspection facade."
         ),
-        input_schema={
-            "type": "object",
-            "properties": {
-                "install_root": {
-                    "type": ["string", "null"],
-                    "description": "Optional explicit EU5 install root.",
-                },
-                "system": {
-                    "type": "string",
-                    "enum": [system.name for system in inspection.list_entity_systems()],
-                },
-                "name": {
-                    "type": "string",
-                    "description": "Exact entity name within the chosen system.",
-                },
-                "mod_roots": {
-                    "type": "array",
-                    "description": "Optional extra mod roots layered after vanilla and DLC.",
-                    "items": {"type": "string"},
-                },
-            },
-            "required": ["system", "name"],
-        },
+        input_schema=_ENTITY_LOOKUP_INPUT_SCHEMA,
     ),
     invoke=_invoke_describe_entity,
+)
+
+
+_LIST_ENTITY_LINKS_TOOL = RegisteredTool(
+    descriptor=ToolDescriptor(
+        name="list-entity-links",
+        description=(
+            "List the linked references for one entity by reusing the core reference "
+            "list already exposed by describe-entity."
+        ),
+        input_schema=_ENTITY_LOOKUP_INPUT_SCHEMA,
+    ),
+    invoke=_invoke_list_entity_links,
 )

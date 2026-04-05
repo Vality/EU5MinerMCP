@@ -17,6 +17,7 @@ from eu5miner import (
 )
 from eu5miner.inspection import (
     EntityDetail,
+    EntityReference,
     EntitySummary,
     EntitySystemInfo,
     InstallSummary,
@@ -122,15 +123,17 @@ def serialize_entity_detail(detail: EntityDetail) -> dict[str, JSONValue]:
             {"name": field.name, "value": _serialize_browse_value(field.value)}
             for field in detail.fields
         ],
-        "references": [
-            {
-                "role": reference.role,
-                "system": reference.system,
-                "entity_kind": reference.entity_kind,
-                "target_name": reference.target_name,
-            }
-            for reference in detail.references
-        ],
+        "references": [_serialize_entity_reference(reference) for reference in detail.references],
+    }
+
+
+def serialize_entity_links(detail: EntityDetail) -> dict[str, JSONValue]:
+    return {
+        "system": detail.summary.system,
+        "entity_kind": detail.summary.entity_kind,
+        "name": detail.summary.name,
+        "reference_count": len(detail.references),
+        "references": [_serialize_entity_reference(reference) for reference in detail.references],
     }
 
 
@@ -236,6 +239,15 @@ def _serialize_entity_summary(summary: EntitySummary) -> dict[str, JSONValue]:
     if summary.description is not None:
         payload["description"] = summary.description
     return payload
+
+
+def _serialize_entity_reference(reference: EntityReference) -> dict[str, JSONValue]:
+    return {
+        "role": reference.role,
+        "system": reference.system,
+        "entity_kind": reference.entity_kind,
+        "target_name": reference.target_name,
+    }
 
 
 def _serialize_browse_value(

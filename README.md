@@ -14,7 +14,7 @@ The current surface is intentionally narrow: the first real MCP slices wrap stab
 
 - The `0.5.x` line should be treated as a public preview rather than a stable `1.0` API.
 - The current implementation is a local typed MCP shell over stable `eu5miner` inspection, VFS, entity-browsing, and mod workflow seams.
-- The active registered tools are `inspect-install`, `list-files`, `list-systems`, `report-system`, `list-entity-systems`, `find-entity`, `describe-entity`, `plan-mod-update`, and `apply-mod-update`.
+- The active registered tools are `inspect-install`, `list-files`, `list-systems`, `report-system`, `list-entity-systems`, `find-entity`, `describe-entity`, `list-entity-links`, `plan-mod-update`, and `apply-mod-update`.
 - The CLI currently prints the startup status line and can describe the registered tools with `--describe`.
 - Full protocol transport and broader cross-entity graph tooling are still future work.
 - Parsing, VFS, and domain logic should continue to live in the core `eu5miner` library.
@@ -32,10 +32,11 @@ The preview shell currently exposes a narrow tool registry:
 - `list-entity-systems`: list the narrow browseable entity systems and their primary entity kinds
 - `find-entity`: browse one supported entity system with an optional case-insensitive name filter
 - `describe-entity`: return the summary, fields, and linked references for one named entity
+- `list-entity-links`: return only the linked references for one named entity
 - `plan-mod-update`: plan a mod update and return both the formatted report and structured write metadata without applying changes
 - `apply-mod-update`: apply a mod update and return both the formatted report and structured materialization result
 
-The entity-browsing slice is intentionally narrow. It wraps the core `eu5miner.inspection` browseable subset instead of inventing a generic graph API in the MCP layer, so the current real entity tools cover `economy` goods, `government` government types, `religion` religions, and `map` locations. There is no separate `list-entity-links` tool in this slice because `describe-entity` already returns the core reference list for one entity.
+The entity-browsing slice is intentionally narrow. It wraps the core `eu5miner.inspection` browseable subset instead of inventing a generic graph API in the MCP layer, so the current real entity tools cover `economy` goods, `government` government types, `religion` religions, and `map` locations. The `list-entity-links` tool is only a convenience view over the same core reference list already returned by `describe-entity`; it does not introduce separate graph traversal behavior in the MCP layer.
 
 At this stage the package is best understood as a typed MCP-facing shell and CLI entrypoint over a narrow inspection, entity-browsing, and mod workflow surface, not as a full transport-integrated production server.
 
