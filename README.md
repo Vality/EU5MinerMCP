@@ -2,12 +2,12 @@
 
 EU5MinerMCP is the dedicated MCP application repo for exposing `eu5miner` capabilities through a thin server surface.
 
-The current state is intentionally minimal: the repo is being scaffolded for parallel cloud-agent work before the real tool surface is widened.
+The current surface is intentionally narrow: the first real read-only MCP slice wraps stable `eu5miner` inspection and VFS seams without duplicating parser or domain logic.
 
 ## Status
 
 - The repo is scaffolded as a standalone Python application.
-- The first milestone is a launchable placeholder server process that proves the dependency and validation pipeline.
+- The first real tool slice exposes install summary, merged file listing, supported systems, and system reports through an explicit typed server registry.
 - Parsing, VFS, and domain logic should continue to live in the core `eu5miner` library.
 
 For now the dependency resolves directly from the `EU5Miner` GitHub repo so CI can run before a package-registry release exists.
