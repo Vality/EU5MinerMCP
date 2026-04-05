@@ -6,6 +6,7 @@ import eu5miner.inspection as inspection
 from eu5miner import GameInstall
 
 import eu5miner_mcp.tools.systems as systems_tools
+from eu5miner_mcp.__main__ import main as package_main
 from eu5miner_mcp.cli import main
 from eu5miner_mcp.models import ToolDescriptor
 from eu5miner_mcp.serializers import serialize_status_message
@@ -175,6 +176,14 @@ def test_server_dispatches_registered_tools(tmp_path: Path) -> None:
 
 def test_cli_main_describe_prints_registered_tools(capsys) -> None:
     assert main(["--describe"]) == 0
+    captured = capsys.readouterr()
+    assert "EU5MinerMCP read-only server ready." in captured.out
+    assert "inspect-install" in captured.out
+    assert "list-systems" in captured.out
+
+
+def test_package_main_describe_prints_registered_tools(capsys) -> None:
+    assert package_main(["--describe"]) == 0
     captured = capsys.readouterr()
     assert "EU5MinerMCP read-only server ready." in captured.out
     assert "inspect-install" in captured.out

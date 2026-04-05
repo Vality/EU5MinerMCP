@@ -29,6 +29,9 @@ eu5miner-mcp = "eu5miner_mcp.cli:main"
 [tool.hatch.build.targets.wheel]
 packages = ["src/eu5miner_mcp"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"src/eu5miner_mcp/__main__.py" = "__main__.py"
+
 [tool.hatch.metadata]
 allow-direct-references = true
 
