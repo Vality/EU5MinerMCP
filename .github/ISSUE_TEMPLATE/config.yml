@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Support question
+    url: https://github.com/Vality/EU5MinerMCP/blob/main/SUPPORT.md
+    about: Use the support guide for setup help, usage questions, and uncertain reports.
+  - name: Security report
+    url: https://github.com/Vality/EU5MinerMCP/security/policy
+    about: Do not open public issues for vulnerabilities; follow the security policy instead.
