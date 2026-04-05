@@ -6,12 +6,13 @@ import eu5miner.inspection as inspection
 import pytest
 from eu5miner import GameInstall
 
+import eu5miner_mcp.tools.entities as entity_tools
 import eu5miner_mcp.tools.mods as mod_tools
 import eu5miner_mcp.tools.systems as systems_tools
 from eu5miner_mcp.__main__ import main as package_main
 from eu5miner_mcp.cli import main
 from eu5miner_mcp.models import ToolDescriptor
-from eu5miner_mcp.serializers import serialize_status_message
+from eu5miner_mcp.serializers import serialize_entity_detail, serialize_status_message
 from eu5miner_mcp.server import build_server, build_startup_message
 from eu5miner_mcp.tools import (
     describe_entity_tools,
@@ -20,6 +21,7 @@ from eu5miner_mcp.tools import (
     describe_mod_tools,
     describe_system_tools,
 )
+from eu5miner_mcp.tools.entities import DescribeEntityRequest, FindEntityRequest, find_entities
 from eu5miner_mcp.tools.files import ListFilesRequest, list_files
 from eu5miner_mcp.tools.install import InspectInstallRequest, inspect_install
 from eu5miner_mcp.tools.systems import GetSystemReportRequest, list_systems
@@ -30,9 +32,13 @@ def test_build_startup_message_lists_real_tool_names() -> None:
 
     assert "EU5MinerMCP server ready." in message
     assert "apply-mod-update" in message
+    assert "describe-entity" in message
+    assert "find-entity" in message
     assert "inspect-install" in message
+    assert "list-entity-systems" in message
     assert "plan-mod-update" in message
     assert "report-system" in message
+    assert "list-entity-links" not in message
 
 
 def test_serialize_status_message_includes_tool_names() -> None:
@@ -42,6 +48,54 @@ def test_serialize_status_message_includes_tool_names() -> None:
     assert payload == {
         "status": message,
         "tools": ["inspect-install", "list-systems"],
+    }
+
+
+def test_serialize_entity_detail_includes_fields_and_references() -> None:
+    detail = inspection.EntityDetail(
+        summary=inspection.EntitySummary(
+            system="map",
+            entity_kind="location",
+            name="stockholm",
+            group="province",
+            description="capital_of=SWE; setup=yes",
+        ),
+        fields=(
+            inspection.EntityField(name="hierarchy_path", value=("scandinavia", "province")),
+            inspection.EntityField(name="has_location_setup", value=True),
+        ),
+        references=(
+            inspection.EntityReference(
+                role="capital_of",
+                system="map",
+                entity_kind="country",
+                target_name="SWE",
+            ),
+        ),
+    )
+
+    payload = serialize_entity_detail(detail)
+
+    assert payload == {
+        "summary": {
+            "system": "map",
+            "entity_kind": "location",
+            "name": "stockholm",
+            "group": "province",
+            "description": "capital_of=SWE; setup=yes",
+        },
+        "fields": [
+            {"name": "hierarchy_path", "value": ["scandinavia", "province"]},
+            {"name": "has_location_setup", "value": True},
+        ],
+        "references": [
+            {
+                "role": "capital_of",
+                "system": "map",
+                "entity_kind": "country",
+                "target_name": "SWE",
+            }
+        ],
     }
 
 
@@ -56,6 +110,16 @@ def test_tool_descriptors_are_typed_and_non_empty() -> None:
 
     assert descriptors
     assert all(isinstance(descriptor, ToolDescriptor) for descriptor in descriptors)
+
+
+def test_describe_entity_tools_expose_real_entity_browsing_slice() -> None:
+    descriptor_names = [descriptor.name for descriptor in describe_entity_tools()]
+
+    assert descriptor_names == [
+        "list-entity-systems",
+        "find-entity",
+        "describe-entity",
+    ]
 
 
 def test_inspect_install_tool_uses_core_facade(tmp_path: Path) -> None:
@@ -112,6 +176,77 @@ def test_list_systems_returns_core_supported_systems() -> None:
         "interface",
         "map",
     ]
+
+
+def test_list_entity_systems_returns_core_supported_entity_systems() -> None:
+    systems = entity_tools.list_entity_systems()
+
+    assert [(system.name, system.primary_entity_kind) for system in systems] == [
+        ("economy", "good"),
+        ("government", "government_type"),
+        ("religion", "religion"),
+        ("map", "location"),
+    ]
+
+
+def test_find_entity_filters_summaries_for_synthetic_install(tmp_path: Path) -> None:
+    install_root = _make_synthetic_entity_install(tmp_path / "fixture")
+
+    result = find_entities(
+        FindEntityRequest(
+            install_root=install_root,
+            system="economy",
+            name_contains="ir",
+            limit=5,
+        )
+    )
+
+    assert result.system == "economy"
+    assert result.name_contains == "ir"
+    assert result.total_count == 1
+    assert [summary.name for summary in result.entities] == ["iron"]
+    assert result.entities[0].entity_kind == "good"
+    assert result.entities[0].group == "raw_material"
+
+
+def test_describe_entity_uses_mod_roots_for_synthetic_install(tmp_path: Path) -> None:
+    install_root = _make_synthetic_entity_install(tmp_path / "fixture")
+    mod_root = tmp_path / "economy_mod"
+    _write_file(
+        mod_root / "in_game" / "common" / "goods" / "zinc.txt",
+        (
+            "zinc = {\n"
+            "    method = mining\n"
+            "    category = raw_material\n"
+            "    default_market_price = 5\n"
+            "}\n"
+        ),
+    )
+
+    summaries = find_entities(
+        FindEntityRequest(
+            install_root=install_root,
+            system="economy",
+            mod_roots=(mod_root,),
+            name_contains="zin",
+        )
+    )
+    detail = entity_tools.describe_entity(
+        DescribeEntityRequest(
+            install_root=install_root,
+            system="economy",
+            name="zinc",
+            mod_roots=(mod_root,),
+        )
+    )
+
+    assert [summary.name for summary in summaries.entities] == ["zinc"]
+    assert detail.summary.name == "zinc"
+    assert detail.summary.group == "raw_material"
+    assert any(
+        field.name == "default_market_price" and field.value == "5"
+        for field in detail.fields
+    )
 
 
 def test_get_system_report_delegates_to_core_facade(
@@ -262,6 +397,28 @@ def test_server_dispatches_registered_tools(tmp_path: Path) -> None:
         install_root / "game" / "in_game" / "common" / "buildings" / "a.txt",
         "vanilla\n",
     )
+    _write_file(
+        install_root / "game" / "in_game" / "common" / "goods" / "goods.txt",
+        (
+            "iron = {\n"
+            "    method = mining\n"
+            "    category = raw_material\n"
+            "    default_market_price = 3\n"
+            "}\n"
+        ),
+    )
+    _write_file(
+        install_root / "game" / "in_game" / "common" / "prices" / "market.txt",
+        "build_road = { gold = 10 }\n",
+    )
+    _write_file(
+        install_root / "game" / "in_game" / "common" / "generic_actions" / "market.txt",
+        "create_market = { type = owncountry select_trigger = { looking_for_a = market } }\n",
+    )
+    _write_file(
+        install_root / "game" / "in_game" / "common" / "attribute_columns" / "market.txt",
+        "market = { name = { widget = default_text_column } }\n",
+    )
     server = build_server()
 
     install_response = server.call_tool("inspect-install", {"install_root": str(install_root)})
@@ -294,6 +451,23 @@ def test_server_dispatches_registered_tools(tmp_path: Path) -> None:
         },
     )
     systems_response = server.call_tool("list-systems")
+    entity_systems_response = server.call_tool("list-entity-systems")
+    find_entity_response = server.call_tool(
+        "find-entity",
+        {
+            "install_root": str(install_root),
+            "system": "economy",
+            "name_contains": "ir",
+        },
+    )
+    describe_entity_response = server.call_tool(
+        "describe-entity",
+        {
+            "install_root": str(install_root),
+            "system": "economy",
+            "name": "iron",
+        },
+    )
 
     assert install_response.structured_content["root"] == str(install_root)
     assert file_response.structured_content["total_count"] == 1
@@ -348,6 +522,69 @@ def test_server_dispatches_registered_tools(tmp_path: Path) -> None:
     ]
     assert "Applied mod update: applied_mod" in apply_response.text
     assert systems_response.structured_content["systems"]
+    assert entity_systems_response.structured_content["systems"] == [
+        {
+            "name": "economy",
+            "description": (
+                "Browse goods definitions with market-facing fields and related good links."
+            ),
+            "primary_entity_kind": "good",
+        },
+        {
+            "name": "government",
+            "description": (
+                "Browse government types with linked reforms, laws, and default estates."
+            ),
+            "primary_entity_kind": "government_type",
+        },
+        {
+            "name": "religion",
+            "description": (
+                "Browse religions with linked aspects, factions, focuses, schools, figures, "
+                "and holy sites."
+            ),
+            "primary_entity_kind": "religion",
+        },
+        {
+            "name": "map",
+            "description": (
+                "Browse linked locations merged from map hierarchy and main-menu setup data."
+            ),
+            "primary_entity_kind": "location",
+        },
+    ]
+    assert find_entity_response.structured_content == {
+        "system": "economy",
+        "name_contains": "ir",
+        "total_count": 1,
+        "returned_count": 1,
+        "limit": 20,
+        "entities": [
+            {
+                "system": "economy",
+                "entity_kind": "good",
+                "name": "iron",
+                "group": "raw_material",
+                "description": "method=mining; default_market_price=3",
+            }
+        ],
+    }
+    assert describe_entity_response.structured_content == {
+        "summary": {
+            "system": "economy",
+            "entity_kind": "good",
+            "name": "iron",
+            "group": "raw_material",
+            "description": "method=mining; default_market_price=3",
+        },
+        "fields": [
+            {"name": "method", "value": "mining"},
+            {"name": "category", "value": "raw_material"},
+            {"name": "default_market_price", "value": "3"},
+        ],
+        "references": [],
+    }
+    assert "Entity: economy/good/iron" in describe_entity_response.text
 
 
 def test_cli_main_describe_prints_registered_tools(capsys) -> None:
@@ -355,9 +592,13 @@ def test_cli_main_describe_prints_registered_tools(capsys) -> None:
     captured = capsys.readouterr()
     assert "EU5MinerMCP server ready." in captured.out
     assert "apply-mod-update" in captured.out
+    assert "describe-entity" in captured.out
+    assert "find-entity" in captured.out
     assert "inspect-install" in captured.out
+    assert "list-entity-systems" in captured.out
     assert "plan-mod-update" in captured.out
     assert "list-systems" in captured.out
+    assert "list-entity-links" not in captured.out
 
 
 def test_package_main_describe_prints_registered_tools(capsys) -> None:
@@ -365,9 +606,41 @@ def test_package_main_describe_prints_registered_tools(capsys) -> None:
     captured = capsys.readouterr()
     assert "EU5MinerMCP server ready." in captured.out
     assert "apply-mod-update" in captured.out
+    assert "describe-entity" in captured.out
+    assert "find-entity" in captured.out
     assert "inspect-install" in captured.out
+    assert "list-entity-systems" in captured.out
     assert "plan-mod-update" in captured.out
     assert "list-systems" in captured.out
+    assert "list-entity-links" not in captured.out
+
+
+def _make_synthetic_entity_install(root: Path) -> Path:
+    install_root = _make_install_root(root / "install")
+    _write_file(
+        install_root / "game" / "in_game" / "common" / "goods" / "goods.txt",
+        (
+            "iron = {\n"
+            "    method = mining\n"
+            "    category = raw_material\n"
+            "    default_market_price = 3\n"
+            "}\n"
+            "grain = { method = farming category = food }\n"
+        ),
+    )
+    _write_file(
+        install_root / "game" / "in_game" / "common" / "prices" / "prices.txt",
+        "build_road = { gold = 10 }\n",
+    )
+    _write_file(
+        install_root / "game" / "in_game" / "common" / "generic_actions" / "actions.txt",
+        "create_market = { type = owncountry select_trigger = { looking_for_a = market } }\n",
+    )
+    _write_file(
+        install_root / "game" / "in_game" / "common" / "attribute_columns" / "columns.txt",
+        "market = { name = { widget = default_text_column } }\n",
+    )
+    return install_root
 
 
 def _make_install_root(install_root: Path) -> Path:

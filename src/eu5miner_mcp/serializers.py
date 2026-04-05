@@ -15,7 +15,14 @@ from eu5miner import (
     ModUpdateWrite,
     PlannedModUpdate,
 )
-from eu5miner.inspection import InstallSummary, SystemInfo, SystemReport
+from eu5miner.inspection import (
+    EntityDetail,
+    EntitySummary,
+    EntitySystemInfo,
+    InstallSummary,
+    SystemInfo,
+    SystemReport,
+)
 from eu5miner.vfs import MergedFile, SourceFile
 
 from eu5miner_mcp.models import JSONValue
@@ -70,6 +77,60 @@ def serialize_system_report(report: SystemReport) -> dict[str, JSONValue]:
         "description": report.description,
         "representative_keys": list(report.representative_keys),
         "summary_lines": list(report.summary_lines),
+    }
+
+
+def serialize_entity_system_list(
+    systems: Sequence[EntitySystemInfo],
+) -> dict[str, JSONValue]:
+    return {
+        "systems": [
+            {
+                "name": system.name,
+                "description": system.description,
+                "primary_entity_kind": system.primary_entity_kind,
+            }
+            for system in systems
+        ]
+    }
+
+
+def serialize_entity_search_result(
+    entities: Sequence[EntitySummary],
+    *,
+    system: str,
+    total_count: int,
+    limit: int,
+    name_contains: str | None,
+) -> dict[str, JSONValue]:
+    payload: dict[str, JSONValue] = {
+        "system": system,
+        "total_count": total_count,
+        "returned_count": len(entities),
+        "limit": limit,
+        "entities": [_serialize_entity_summary(entity) for entity in entities],
+    }
+    if name_contains is not None:
+        payload["name_contains"] = name_contains
+    return payload
+
+
+def serialize_entity_detail(detail: EntityDetail) -> dict[str, JSONValue]:
+    return {
+        "summary": _serialize_entity_summary(detail.summary),
+        "fields": [
+            {"name": field.name, "value": _serialize_browse_value(field.value)}
+            for field in detail.fields
+        ],
+        "references": [
+            {
+                "role": reference.role,
+                "system": reference.system,
+                "entity_kind": reference.entity_kind,
+                "target_name": reference.target_name,
+            }
+            for reference in detail.references
+        ],
     }
 
 
@@ -162,6 +223,27 @@ def serialize_applied_mod_update(update: AppliedModUpdate) -> dict[str, JSONValu
             _serialize_applied_mod_write(write) for write in update.content_writes
         ],
     }
+
+
+def _serialize_entity_summary(summary: EntitySummary) -> dict[str, JSONValue]:
+    payload: dict[str, JSONValue] = {
+        "system": summary.system,
+        "entity_kind": summary.entity_kind,
+        "name": summary.name,
+    }
+    if summary.group is not None:
+        payload["group"] = summary.group
+    if summary.description is not None:
+        payload["description"] = summary.description
+    return payload
+
+
+def _serialize_browse_value(
+    value: str | int | float | bool | tuple[str, ...],
+) -> JSONValue:
+    if isinstance(value, tuple):
+        return list(value)
+    return value
 
 
 def _serialize_source_file(source_file: SourceFile) -> dict[str, JSONValue]:
