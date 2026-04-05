@@ -1,4 +1,4 @@
-"""CLI entrypoint for the first read-only MCP tool slice."""
+"""CLI entrypoint for the current MCP tool slice."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--describe",
         action="store_true",
-        help="Print the current read-only MCP server tool surface.",
+        help="Print the current MCP server tool surface.",
     )
     args = parser.parse_args(list(argv) if argv is not None else None)
 

@@ -1,4 +1,4 @@
-"""Serializer helpers for the first real read-only MCP tool slice."""
+"""Serializer helpers for the current MCP tool slice."""
 
 from __future__ import annotations
 
@@ -6,6 +6,8 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from eu5miner import (
+    AppliedModUpdate,
+    AppliedModWrite,
     BlockedModEmission,
     ContentPhase,
     ModUpdateAdvisory,
@@ -130,6 +132,38 @@ def serialize_planned_mod_update(update: PlannedModUpdate) -> dict[str, JSONValu
     }
 
 
+def serialize_applied_mod_update(update: AppliedModUpdate) -> dict[str, JSONValue]:
+    return {
+        "target_source_name": update.plan.target_source_name,
+        "phase": update.plan.phase.value,
+        "relative_root": str(update.plan.relative_root),
+        "root": str(update.plan.root),
+        "has_blockers": update.plan.has_blockers,
+        "replace_paths_to_add": list(update.plan.replace_paths_to_add),
+        "summary": {
+            "created_directories": len(update.created_directories),
+            "created_writes": update.created_write_count,
+            "updated_writes": update.updated_write_count,
+            "unchanged_writes": update.unchanged_write_count,
+            "blocked_intended_outputs": len(update.blocked_emissions),
+            "warnings": len(update.warnings),
+            "advisories": len(update.advisories),
+        },
+        "created_directories": [str(path) for path in update.created_directories],
+        "blocked_emissions": [
+            _serialize_blocked_emission(blocked) for blocked in update.blocked_emissions
+        ],
+        "warnings": [_serialize_mod_update_warning(warning) for warning in update.warnings],
+        "advisories": [
+            _serialize_mod_update_advisory(advisory) for advisory in update.advisories
+        ],
+        "metadata_write": _serialize_applied_mod_write(update.metadata_write),
+        "content_writes": [
+            _serialize_applied_mod_write(write) for write in update.content_writes
+        ],
+    }
+
+
 def _serialize_source_file(source_file: SourceFile) -> dict[str, JSONValue]:
     return {
         "source_name": source_file.source.name,
@@ -173,6 +207,19 @@ def _serialize_mod_update_write(write: ModUpdateWrite) -> dict[str, JSONValue]:
         "kind": write.kind.value,
         "content": write.content,
         "existed": write.existed,
+    }
+    if write.relative_path is not None:
+        payload["relative_path"] = str(write.relative_path)
+    if write.emission_kind is not None:
+        payload["emission_kind"] = write.emission_kind.value
+    return payload
+
+
+def _serialize_applied_mod_write(write: AppliedModWrite) -> dict[str, JSONValue]:
+    payload: dict[str, JSONValue] = {
+        "path": str(write.path),
+        "kind": write.kind.value,
+        "status": write.status.value,
     }
     if write.relative_path is not None:
         payload["relative_path"] = str(write.relative_path)

@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "eu5miner-mcp"
 version = "0.5.0"
-description = "Public-preview read-only MCP shell built on the EU5Miner library"
+description = "Public-preview MCP shell built on the EU5Miner library"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }

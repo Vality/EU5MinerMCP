@@ -8,30 +8,31 @@ EU5MinerMCP is not affiliated with Paradox Interactive or the Europa Universalis
 
 No game files, extracted assets, or other proprietary game content are included in this repository. The tool surface is intended to inspect a user's own local install and mod directories.
 
-The current surface is intentionally narrow: the first real non-destructive MCP slice wraps stable `eu5miner` inspection, VFS, and mod-planning seams without duplicating parser or domain logic.
+The current surface is intentionally narrow: the first real MCP slices wrap stable `eu5miner` inspection, VFS, and mod workflow seams without duplicating parser or domain logic.
 
 ## Status
 
 - The `0.5.x` line should be treated as a public preview rather than a stable `1.0` API.
-- The current implementation is a local typed non-destructive MCP shell over stable `eu5miner` inspection, VFS, and mod-planning seams.
-- The active registered tools are `inspect-install`, `list-files`, `plan-mod-update`, `list-systems`, and `report-system`.
+- The current implementation is a local typed MCP shell over stable `eu5miner` inspection, VFS, and mod workflow seams.
+- The active registered tools are `inspect-install`, `list-files`, `plan-mod-update`, `apply-mod-update`, `list-systems`, and `report-system`.
 - The CLI currently prints the startup status line and can describe the registered tools with `--describe`.
-- Full protocol transport, richer entity tools, and write-capable workflows are still future work.
+- Full protocol transport and richer entity tools are still future work.
 - Parsing, VFS, and domain logic should continue to live in the core `eu5miner` library.
 
 For the `0.5.0` preview line, the dependency is pinned directly to the released `EU5Miner` GitHub tag `v0.5.0` so the downstream MCP shell stays aligned to the first public core preview contract.
 
 ## Current Shell Behavior
 
-The preview shell currently exposes a narrow read-only registry:
+The preview shell currently exposes a narrow tool registry:
 
 - `inspect-install`: summarize discovered install roots and ordered content sources
 - `list-files`: list merged visible files for one content phase and optional subpath
 - `plan-mod-update`: plan a mod update and return both the formatted report and structured write metadata without applying changes
+- `apply-mod-update`: apply a mod update and return both the formatted report and structured materialization result
 - `list-systems`: list the stable system reports exposed by the core inspection facade
 - `report-system`: build a higher-level report for one supported system
 
-At this stage the package is best understood as a typed MCP-facing shell and CLI entrypoint over those read-only operations, not as a full transport-integrated production server.
+At this stage the package is best understood as a typed MCP-facing shell and CLI entrypoint over a narrow inspection and mod workflow surface, not as a full transport-integrated production server.
 
 ## Development
 

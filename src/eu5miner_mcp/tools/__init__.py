@@ -1,4 +1,4 @@
-"""Typed MCP tool modules for the first read-only slice."""
+"""Typed MCP tool modules for the current preview slice."""
 
 from eu5miner_mcp.tools.entities import describe_entity_tools
 from eu5miner_mcp.tools.files import describe_file_tools, get_file_tools
