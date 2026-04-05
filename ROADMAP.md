@@ -2,26 +2,53 @@
 
 This roadmap is intentionally narrow. The MCP repo should stay focused on server and tool-surface work, not on reimplementing library logic.
 
-## Current Order
+## Current Baseline
 
-### 1. Foundation And Repo Alignment
+The current preview baseline now includes:
 
-Goal: establish the repo, package, CI, docs, and server entrypoint.
+- repo and package alignment with the core library workflow
+- a launchable typed MCP shell and CLI entrypoint
+- registered install, file, system, and mod workflow tools over stable core seams
+- read-only install inspection, merged-file listing, supported-system listing, and per-system reporting
+- mod update planning and apply workflows surfaced through the MCP repo without duplicating parser or VFS logic
 
-### 2. Read-Only MCP Shell
+That means the next work should tighten and extend the shipped server surface, not restart repo or shell foundation work.
 
-Goal: start a minimal server shell that can expose placeholder status over stable `eu5miner` imports.
+## Next Recommended Order
 
-### 3. Read-Only Tool Surface
+### 1. Tool Contract Consolidation
 
-Goal: add install, file, entity, and report lookup tools backed by the library.
+Goal: tighten the current tool surface before widening scope.
 
-### 4. Write And Planning Workflows
+Use this slice for:
 
-Goal: only after the library seam is stable enough, add mod-planning and write-capable tools.
+- clearer tool descriptors and argument expectations
+- more consistent response shaping across inspect, file, system, and mod tools
+- documentation that reflects the actual active tool registry
+
+### 2. Server Boundary And Transport Readiness
+
+Goal: keep the local shell easy to evolve into a fuller MCP server without promising more than is implemented.
+
+Use this slice for:
+
+- separation between local startup behavior and future transport concerns
+- clearer server lifecycle boundaries
+- tests that protect the current typed shell surface
+
+### 3. Targeted Tool Expansion Only Where The Core Seam Exists
+
+Goal: add new tools only when they are thin wrappers over an already-curated library surface.
+
+Do not use this repo to invent parser or domain logic that belongs in `eu5miner`.
+
+### 4. Mod Workflow Hardening
+
+Goal: improve ergonomics and safety around the existing plan and apply workflows before taking on broader write scope.
 
 ## Rules
 
 - parsing work stays in `eu5miner`
 - transport and tool-surface work stays here
-- major feature slices should be backed by a spec in `documents/specs/`
+- the current tool registry is the baseline for follow-on work
+- major follow-on slices should be backed by a spec in `documents/specs/`
