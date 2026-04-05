@@ -1,4 +1,4 @@
-"""Planning-only mod workflow MCP tools."""
+"""Mod workflow MCP tools over the stable core mod facade."""
 
 from __future__ import annotations
 
@@ -7,10 +7,14 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from eu5miner import (
+    AppliedModUpdate,
     ContentPhase,
     GameInstall,
     PlannedModUpdate,
     VirtualFilesystem,
+)
+from eu5miner import (
+    apply_mod_update as apply_core_mod_update,
 )
 from eu5miner import (
     format_mod_update_report as format_core_mod_update_report,
@@ -20,7 +24,10 @@ from eu5miner import (
 )
 
 from eu5miner_mcp.models import RegisteredTool, ToolDescriptor, ToolResponse
-from eu5miner_mcp.serializers import serialize_planned_mod_update
+from eu5miner_mcp.serializers import (
+    serialize_applied_mod_update,
+    serialize_planned_mod_update,
+)
 
 
 @dataclass(frozen=True)
@@ -32,6 +39,18 @@ class PlanModUpdateRequest:
     later_mod_roots: tuple[Path, ...] = ()
     intended_paths: tuple[Path, ...] = ()
     content_by_relative_path: Mapping[Path, str] | None = None
+
+
+@dataclass(frozen=True)
+class ApplyModUpdateRequest:
+    phase: ContentPhase
+    mod_root: Path
+    subtree: Path
+    install_root: Path | None = None
+    later_mod_roots: tuple[Path, ...] = ()
+    intended_paths: tuple[Path, ...] = ()
+    content_by_relative_path: Mapping[Path, str] | None = None
+    overwrite: bool = True
 
 
 def plan_mod_update(request: PlanModUpdateRequest) -> PlannedModUpdate:
@@ -67,12 +86,27 @@ def plan_mod_update(request: PlanModUpdateRequest) -> PlannedModUpdate:
     )
 
 
+def apply_mod_update(request: ApplyModUpdateRequest) -> AppliedModUpdate:
+    planned_update = plan_mod_update(
+        PlanModUpdateRequest(
+            phase=request.phase,
+            mod_root=request.mod_root,
+            subtree=request.subtree,
+            install_root=request.install_root,
+            later_mod_roots=request.later_mod_roots,
+            intended_paths=request.intended_paths,
+            content_by_relative_path=request.content_by_relative_path,
+        )
+    )
+    return apply_core_mod_update(planned_update, overwrite=request.overwrite)
+
+
 def describe_mod_tools() -> tuple[ToolDescriptor, ...]:
-    return (_PLAN_MOD_UPDATE_TOOL.descriptor,)
+    return (_PLAN_MOD_UPDATE_TOOL.descriptor, _APPLY_MOD_UPDATE_TOOL.descriptor)
 
 
 def get_mod_tools() -> tuple[RegisteredTool, ...]:
-    return (_PLAN_MOD_UPDATE_TOOL,)
+    return (_PLAN_MOD_UPDATE_TOOL, _APPLY_MOD_UPDATE_TOOL)
 
 
 def _invoke_plan_mod_update(arguments: Mapping[str, object] | None = None) -> ToolResponse:
@@ -84,10 +118,41 @@ def _invoke_plan_mod_update(arguments: Mapping[str, object] | None = None) -> To
     )
 
 
+def _invoke_apply_mod_update(arguments: Mapping[str, object] | None = None) -> ToolResponse:
+    request = _parse_apply_mod_update_request(arguments)
+    update = apply_mod_update(request)
+    return ToolResponse(
+        text=format_core_mod_update_report(update),
+        structured_content=serialize_applied_mod_update(update),
+    )
+
+
 def _parse_plan_mod_update_request(
     arguments: Mapping[str, object] | None,
 ) -> PlanModUpdateRequest:
     mapping = arguments or {}
+    return _build_plan_mod_update_request(mapping)
+
+
+def _parse_apply_mod_update_request(
+    arguments: Mapping[str, object] | None,
+) -> ApplyModUpdateRequest:
+    mapping = arguments or {}
+    plan_request = _build_plan_mod_update_request(mapping)
+    overwrite = _bool_value(mapping.get("overwrite", True), field_name="overwrite")
+    return ApplyModUpdateRequest(
+        phase=plan_request.phase,
+        mod_root=plan_request.mod_root,
+        subtree=plan_request.subtree,
+        install_root=plan_request.install_root,
+        later_mod_roots=plan_request.later_mod_roots,
+        intended_paths=plan_request.intended_paths,
+        content_by_relative_path=plan_request.content_by_relative_path,
+        overwrite=overwrite,
+    )
+
+
+def _build_plan_mod_update_request(mapping: Mapping[str, object]) -> PlanModUpdateRequest:
     phase_value = mapping.get("phase")
     if not isinstance(phase_value, str):
         raise TypeError("phase must be one of loading_screen, main_menu, or in_game")
@@ -161,6 +226,12 @@ def _path_text_mapping(value: object) -> dict[Path, str] | None:
     return content_mapping
 
 
+def _bool_value(value: object, *, field_name: str) -> bool:
+    if isinstance(value, bool):
+        return value
+    raise TypeError(f"{field_name} must be a boolean")
+
+
 def _coerce_path(value: object) -> Path:
     if isinstance(value, Path):
         return value
@@ -217,4 +288,61 @@ _PLAN_MOD_UPDATE_TOOL = RegisteredTool(
         },
     ),
     invoke=_invoke_plan_mod_update,
+)
+
+
+_APPLY_MOD_UPDATE_TOOL = RegisteredTool(
+    descriptor=ToolDescriptor(
+        name="apply-mod-update",
+        description="Apply a planned mod update over the core mod workflow API.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "install_root": {
+                    "type": ["string", "null"],
+                    "description": "Optional explicit EU5 install root.",
+                },
+                "mod_root": {
+                    "type": "string",
+                    "description": "Target mod root that will receive the applied update.",
+                },
+                "later_mod_roots": {
+                    "type": "array",
+                    "description": "Optional later mod roots that can shadow the target mod.",
+                    "items": {"type": "string"},
+                },
+                "phase": {
+                    "type": "string",
+                    "enum": [phase.value for phase in ContentPhase],
+                },
+                "subtree": {
+                    "type": "string",
+                    "description": "Phase-relative subtree to apply, for example common/buildings.",
+                },
+                "intended_paths": {
+                    "type": "array",
+                    "description": (
+                        "Optional phase-relative intended output paths, used even when no content "
+                        "string is supplied."
+                    ),
+                    "items": {"type": "string"},
+                },
+                "content_by_relative_path": {
+                    "type": "object",
+                    "description": (
+                        "Optional mapping of phase-relative output paths to applied file content."
+                    ),
+                    "additionalProperties": {"type": "string"},
+                },
+                "overwrite": {
+                    "type": "boolean",
+                    "description": (
+                        "Whether existing target files may be overwritten. Defaults to true."
+                    ),
+                },
+            },
+            "required": ["mod_root", "phase", "subtree"],
+        },
+    ),
+    invoke=_invoke_apply_mod_update,
 )

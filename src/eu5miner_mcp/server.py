@@ -1,4 +1,4 @@
-"""Thin read-only MCP server surface over the core EU5Miner library."""
+"""Thin typed MCP server surface over the core EU5Miner library."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from eu5miner_mcp.tools import (
 
 
 @dataclass(frozen=True)
-class ReadOnlyServer:
+class MCPServer:
     tools: tuple[RegisteredTool, ...]
 
     def describe_tools(self) -> tuple[ToolDescriptor, ...]:
@@ -34,8 +34,11 @@ class ReadOnlyServer:
         raise KeyError(f"Unknown tool '{name}'. Valid tools: {valid_names}")
 
 
-def build_server() -> ReadOnlyServer:
-    return ReadOnlyServer(
+ReadOnlyServer = MCPServer
+
+
+def build_server() -> MCPServer:
+    return MCPServer(
         tools=(
             *get_install_tools(),
             *get_file_tools(),
@@ -45,10 +48,10 @@ def build_server() -> ReadOnlyServer:
     )
 
 
-def build_startup_message(server: ReadOnlyServer | None = None) -> str:
+def build_startup_message(server: MCPServer | None = None) -> str:
     active_server = build_server() if server is None else server
     tool_names = ", ".join(descriptor.name for descriptor in active_server.describe_tools())
-    return f"EU5MinerMCP read-only server ready. Tools: {tool_names}."
+    return f"EU5MinerMCP server ready. Tools: {tool_names}."
 
 
 def run_server() -> str:
