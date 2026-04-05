@@ -12,7 +12,11 @@ import eu5miner_mcp.tools.systems as systems_tools
 from eu5miner_mcp.__main__ import main as package_main
 from eu5miner_mcp.cli import main
 from eu5miner_mcp.models import ToolDescriptor
-from eu5miner_mcp.serializers import serialize_entity_detail, serialize_status_message
+from eu5miner_mcp.serializers import (
+    serialize_entity_detail,
+    serialize_entity_links,
+    serialize_status_message,
+)
 from eu5miner_mcp.server import build_server, build_startup_message
 from eu5miner_mcp.tools import (
     describe_entity_tools,
@@ -36,9 +40,9 @@ def test_build_startup_message_lists_real_tool_names() -> None:
     assert "find-entity" in message
     assert "inspect-install" in message
     assert "list-entity-systems" in message
+    assert "list-entity-links" in message
     assert "plan-mod-update" in message
     assert "report-system" in message
-    assert "list-entity-links" not in message
 
 
 def test_serialize_status_message_includes_tool_names() -> None:
@@ -99,6 +103,46 @@ def test_serialize_entity_detail_includes_fields_and_references() -> None:
     }
 
 
+def test_serialize_entity_links_returns_link_only_payload() -> None:
+    detail = inspection.EntityDetail(
+        summary=inspection.EntitySummary(
+            system="map",
+            entity_kind="location",
+            name="stockholm",
+            group="province",
+            description="capital_of=SWE; setup=yes",
+        ),
+        fields=(
+            inspection.EntityField(name="hierarchy_path", value=("scandinavia", "province")),
+        ),
+        references=(
+            inspection.EntityReference(
+                role="capital_of",
+                system="map",
+                entity_kind="country",
+                target_name="SWE",
+            ),
+        ),
+    )
+
+    payload = serialize_entity_links(detail)
+
+    assert payload == {
+        "system": "map",
+        "entity_kind": "location",
+        "name": "stockholm",
+        "reference_count": 1,
+        "references": [
+            {
+                "role": "capital_of",
+                "system": "map",
+                "entity_kind": "country",
+                "target_name": "SWE",
+            }
+        ],
+    }
+
+
 def test_tool_descriptors_are_typed_and_non_empty() -> None:
     descriptors = (
         *describe_install_tools(),
@@ -119,6 +163,7 @@ def test_describe_entity_tools_expose_real_entity_browsing_slice() -> None:
         "list-entity-systems",
         "find-entity",
         "describe-entity",
+        "list-entity-links",
     ]
 
 
@@ -246,6 +291,27 @@ def test_describe_entity_uses_mod_roots_for_synthetic_install(tmp_path: Path) ->
     assert any(
         field.name == "default_market_price" and field.value == "5"
         for field in detail.fields
+    )
+
+
+def test_list_entity_links_reuses_describe_entity_references(tmp_path: Path) -> None:
+    install_root = _make_synthetic_entity_install(tmp_path / "fixture")
+
+    references = entity_tools.list_entity_links(
+        DescribeEntityRequest(
+            install_root=install_root,
+            system="economy",
+            name="iron",
+        )
+    )
+
+    assert references == (
+        inspection.EntityReference(
+            role="demand_add",
+            system="economy",
+            entity_kind="good",
+            target_name="grain",
+        ),
     )
 
 
@@ -404,7 +470,9 @@ def test_server_dispatches_registered_tools(tmp_path: Path) -> None:
             "    method = mining\n"
             "    category = raw_material\n"
             "    default_market_price = 3\n"
+            "    demand_add = { grain = 0.2 }\n"
             "}\n"
+            "grain = { method = farming category = food }\n"
         ),
     )
     _write_file(
@@ -462,6 +530,14 @@ def test_server_dispatches_registered_tools(tmp_path: Path) -> None:
     )
     describe_entity_response = server.call_tool(
         "describe-entity",
+        {
+            "install_root": str(install_root),
+            "system": "economy",
+            "name": "iron",
+        },
+    )
+    list_entity_links_response = server.call_tool(
+        "list-entity-links",
         {
             "install_root": str(install_root),
             "system": "economy",
@@ -582,9 +658,31 @@ def test_server_dispatches_registered_tools(tmp_path: Path) -> None:
             {"name": "category", "value": "raw_material"},
             {"name": "default_market_price", "value": "3"},
         ],
-        "references": [],
+        "references": [
+            {
+                "role": "demand_add",
+                "system": "economy",
+                "entity_kind": "good",
+                "target_name": "grain",
+            }
+        ],
     }
     assert "Entity: economy/good/iron" in describe_entity_response.text
+    assert list_entity_links_response.structured_content == {
+        "system": "economy",
+        "entity_kind": "good",
+        "name": "iron",
+        "reference_count": 1,
+        "references": [
+            {
+                "role": "demand_add",
+                "system": "economy",
+                "entity_kind": "good",
+                "target_name": "grain",
+            }
+        ],
+    }
+    assert "Entity links: economy/good/iron" in list_entity_links_response.text
 
 
 def test_cli_main_describe_prints_registered_tools(capsys) -> None:
@@ -595,10 +693,10 @@ def test_cli_main_describe_prints_registered_tools(capsys) -> None:
     assert "describe-entity" in captured.out
     assert "find-entity" in captured.out
     assert "inspect-install" in captured.out
+    assert "list-entity-links" in captured.out
     assert "list-entity-systems" in captured.out
     assert "plan-mod-update" in captured.out
     assert "list-systems" in captured.out
-    assert "list-entity-links" not in captured.out
 
 
 def test_package_main_describe_prints_registered_tools(capsys) -> None:
@@ -609,10 +707,10 @@ def test_package_main_describe_prints_registered_tools(capsys) -> None:
     assert "describe-entity" in captured.out
     assert "find-entity" in captured.out
     assert "inspect-install" in captured.out
+    assert "list-entity-links" in captured.out
     assert "list-entity-systems" in captured.out
     assert "plan-mod-update" in captured.out
     assert "list-systems" in captured.out
-    assert "list-entity-links" not in captured.out
 
 
 def _make_synthetic_entity_install(root: Path) -> Path:
@@ -624,6 +722,7 @@ def _make_synthetic_entity_install(root: Path) -> Path:
             "    method = mining\n"
             "    category = raw_material\n"
             "    default_market_price = 3\n"
+            "    demand_add = { grain = 0.2 }\n"
             "}\n"
             "grain = { method = farming category = food }\n"
         ),
