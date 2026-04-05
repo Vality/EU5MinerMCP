@@ -3,8 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import eu5miner.inspection as inspection
+import pytest
 from eu5miner import GameInstall
 
+import eu5miner_mcp.tools.mods as mod_tools
 import eu5miner_mcp.tools.systems as systems_tools
 from eu5miner_mcp.__main__ import main as package_main
 from eu5miner_mcp.cli import main
@@ -15,6 +17,7 @@ from eu5miner_mcp.tools import (
     describe_entity_tools,
     describe_file_tools,
     describe_install_tools,
+    describe_mod_tools,
     describe_system_tools,
 )
 from eu5miner_mcp.tools.files import ListFilesRequest, list_files
@@ -27,6 +30,7 @@ def test_build_startup_message_lists_real_tool_names() -> None:
 
     assert "EU5MinerMCP read-only server ready." in message
     assert "inspect-install" in message
+    assert "plan-mod-update" in message
     assert "report-system" in message
 
 
@@ -44,6 +48,7 @@ def test_tool_descriptors_are_typed_and_non_empty() -> None:
     descriptors = (
         *describe_install_tools(),
         *describe_file_tools(),
+        *describe_mod_tools(),
         *describe_system_tools(),
         *describe_entity_tools(),
     )
@@ -150,11 +155,62 @@ def test_get_system_report_delegates_to_core_facade(
     }
 
 
+def test_plan_mod_update_wraps_core_planning_api(tmp_path: Path) -> None:
+    install_root = _make_install_root(tmp_path / "install")
+    mod_root = tmp_path / "my_mod"
+    later_mod_root = tmp_path / "later_mod"
+    override_path = Path("common") / "buildings" / "a.txt"
+    blocked_path = Path("common") / "buildings" / "blocked.txt"
+
+    _write_file(install_root / "game" / "in_game" / override_path, "vanilla\n")
+    _write_file(later_mod_root / "in_game" / blocked_path, "late\n")
+
+    update = mod_tools.plan_mod_update(
+        mod_tools.PlanModUpdateRequest(
+            install_root=install_root,
+            mod_root=mod_root,
+            later_mod_roots=(later_mod_root,),
+            phase=inspection.ContentPhase.IN_GAME,
+            subtree=Path("common") / "buildings",
+            intended_paths=(blocked_path,),
+            content_by_relative_path={override_path: "override = yes\n"},
+        )
+    )
+
+    assert update.target_source_name == "my_mod"
+    assert update.metadata_write.path == mod_root / ".metadata" / "metadata.json"
+    assert update.replace_paths_to_add == ("game/in_game/common/buildings",)
+    assert [write.relative_path for write in update.content_writes] == [override_path]
+    assert len(update.warnings) == 1
+    assert update.warnings[0].relative_path == blocked_path
+
+
+def test_plan_mod_update_requires_paths_or_content(tmp_path: Path) -> None:
+    install_root = _make_install_root(tmp_path / "install")
+
+    with pytest.raises(
+        ValueError,
+        match="At least one intended_path or content_by_relative_path entry is required",
+    ):
+        mod_tools.plan_mod_update(
+            mod_tools.PlanModUpdateRequest(
+                install_root=install_root,
+                mod_root=tmp_path / "my_mod",
+                phase=inspection.ContentPhase.IN_GAME,
+                subtree=Path("common") / "buildings",
+            )
+        )
+
+
 def test_server_dispatches_registered_tools(tmp_path: Path) -> None:
     install_root = _make_install_root(tmp_path / "install")
     _write_file(
         install_root / "game" / "in_game" / "gui" / "sample.gui",
         "widget = yes\n",
+    )
+    _write_file(
+        install_root / "game" / "in_game" / "common" / "buildings" / "a.txt",
+        "vanilla\n",
     )
     server = build_server()
 
@@ -167,10 +223,41 @@ def test_server_dispatches_registered_tools(tmp_path: Path) -> None:
             "subpath": "gui",
         },
     )
+    plan_response = server.call_tool(
+        "plan-mod-update",
+        {
+            "install_root": str(install_root),
+            "mod_root": str(tmp_path / "my_mod"),
+            "phase": "in_game",
+            "subtree": "common/buildings",
+            "content_by_relative_path": {"common/buildings/a.txt": "override = yes\n"},
+        },
+    )
     systems_response = server.call_tool("list-systems")
 
     assert install_response.structured_content["root"] == str(install_root)
     assert file_response.structured_content["total_count"] == 1
+    assert plan_response.structured_content["target_source_name"] == "my_mod"
+    assert plan_response.structured_content["summary"] == {
+        "intended_content_outputs": 1,
+        "materialized_writes": 2,
+        "metadata_writes": 1,
+        "replace_path_additions": 1,
+        "blocked_intended_outputs": 0,
+        "warnings": 0,
+        "advisories": 1,
+    }
+    assert plan_response.structured_content["content_writes"] == [
+        {
+            "path": str(tmp_path / "my_mod" / "in_game" / "common" / "buildings" / "a.txt"),
+            "kind": "content",
+            "content": "override = yes\n",
+            "existed": False,
+            "relative_path": str(Path("common") / "buildings" / "a.txt"),
+            "emission_kind": "override",
+        }
+    ]
+    assert "Planned mod update: my_mod" in plan_response.text
     assert systems_response.structured_content["systems"]
 
 
@@ -179,6 +266,7 @@ def test_cli_main_describe_prints_registered_tools(capsys) -> None:
     captured = capsys.readouterr()
     assert "EU5MinerMCP read-only server ready." in captured.out
     assert "inspect-install" in captured.out
+    assert "plan-mod-update" in captured.out
     assert "list-systems" in captured.out
 
 
@@ -187,6 +275,7 @@ def test_package_main_describe_prints_registered_tools(capsys) -> None:
     captured = capsys.readouterr()
     assert "EU5MinerMCP read-only server ready." in captured.out
     assert "inspect-install" in captured.out
+    assert "plan-mod-update" in captured.out
     assert "list-systems" in captured.out
 
 

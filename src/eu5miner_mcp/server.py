@@ -6,7 +6,12 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from eu5miner_mcp.models import RegisteredTool, ToolDescriptor, ToolResponse
-from eu5miner_mcp.tools import get_file_tools, get_install_tools, get_system_tools
+from eu5miner_mcp.tools import (
+    get_file_tools,
+    get_install_tools,
+    get_mod_tools,
+    get_system_tools,
+)
 
 
 @dataclass(frozen=True)
@@ -34,6 +39,7 @@ def build_server() -> ReadOnlyServer:
         tools=(
             *get_install_tools(),
             *get_file_tools(),
+            *get_mod_tools(),
             *get_system_tools(),
         )
     )

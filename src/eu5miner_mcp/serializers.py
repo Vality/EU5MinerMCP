@@ -5,7 +5,14 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
-from eu5miner import ContentPhase
+from eu5miner import (
+    BlockedModEmission,
+    ContentPhase,
+    ModUpdateAdvisory,
+    ModUpdateWarning,
+    ModUpdateWrite,
+    PlannedModUpdate,
+)
 from eu5miner.inspection import InstallSummary, SystemInfo, SystemReport
 from eu5miner.vfs import MergedFile, SourceFile
 
@@ -92,12 +99,86 @@ def serialize_file_listing(
     }
 
 
+def serialize_planned_mod_update(update: PlannedModUpdate) -> dict[str, JSONValue]:
+    return {
+        "target_source_name": update.target_source_name,
+        "phase": update.phase.value,
+        "relative_root": str(update.relative_root),
+        "root": str(update.root),
+        "has_blockers": update.has_blockers,
+        "replace_paths_to_add": list(update.replace_paths_to_add),
+        "summary": {
+            "intended_content_outputs": update.intended_content_write_count,
+            "materialized_writes": len(update.writes),
+            "metadata_writes": 1,
+            "replace_path_additions": len(update.replace_paths_to_add),
+            "blocked_intended_outputs": len(update.blocked_emissions),
+            "warnings": len(update.warnings),
+            "advisories": len(update.advisories),
+        },
+        "blocked_emissions": [
+            _serialize_blocked_emission(blocked) for blocked in update.blocked_emissions
+        ],
+        "warnings": [_serialize_mod_update_warning(warning) for warning in update.warnings],
+        "advisories": [
+            _serialize_mod_update_advisory(advisory) for advisory in update.advisories
+        ],
+        "metadata_write": _serialize_mod_update_write(update.metadata_write),
+        "content_writes": [
+            _serialize_mod_update_write(write) for write in update.content_writes
+        ],
+    }
+
+
 def _serialize_source_file(source_file: SourceFile) -> dict[str, JSONValue]:
     return {
         "source_name": source_file.source.name,
         "source_kind": source_file.source.kind.value,
         "absolute_path": str(source_file.absolute_path),
     }
+
+
+def _serialize_blocked_emission(blocked: BlockedModEmission) -> dict[str, JSONValue]:
+    return {
+        "relative_path": str(blocked.relative_path),
+        "blocker_source_names": list(blocked.blocker_source_names),
+        "blocker_reasons": list(blocked.blocker_reasons),
+    }
+
+
+def _serialize_mod_update_warning(warning: ModUpdateWarning) -> dict[str, JSONValue]:
+    payload: dict[str, JSONValue] = {
+        "kind": warning.kind.value,
+        "message": warning.message,
+        "blocker_source_names": list(warning.blocker_source_names),
+    }
+    if warning.relative_path is not None:
+        payload["relative_path"] = str(warning.relative_path)
+    return payload
+
+
+def _serialize_mod_update_advisory(advisory: ModUpdateAdvisory) -> dict[str, JSONValue]:
+    payload: dict[str, JSONValue] = {
+        "kind": advisory.kind.value,
+        "message": advisory.message,
+    }
+    if advisory.raw_path is not None:
+        payload["raw_path"] = advisory.raw_path
+    return payload
+
+
+def _serialize_mod_update_write(write: ModUpdateWrite) -> dict[str, JSONValue]:
+    payload: dict[str, JSONValue] = {
+        "path": str(write.path),
+        "kind": write.kind.value,
+        "content": write.content,
+        "existed": write.existed,
+    }
+    if write.relative_path is not None:
+        payload["relative_path"] = str(write.relative_path)
+    if write.emission_kind is not None:
+        payload["emission_kind"] = write.emission_kind.value
+    return payload
 
 
 def _display_subpath(subpath: Path) -> Path:

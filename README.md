@@ -8,13 +8,13 @@ EU5MinerMCP is not affiliated with Paradox Interactive or the Europa Universalis
 
 No game files, extracted assets, or other proprietary game content are included in this repository. The tool surface is intended to inspect a user's own local install and mod directories.
 
-The current surface is intentionally narrow: the first real read-only MCP slice wraps stable `eu5miner` inspection and VFS seams without duplicating parser or domain logic.
+The current surface is intentionally narrow: the first real non-destructive MCP slice wraps stable `eu5miner` inspection, VFS, and mod-planning seams without duplicating parser or domain logic.
 
 ## Status
 
 - The `0.5.x` line should be treated as a public preview rather than a stable `1.0` API.
-- The current implementation is a local typed read-only MCP shell over stable `eu5miner` inspection and VFS seams.
-- The active registered tools are `inspect-install`, `list-files`, `list-systems`, and `report-system`.
+- The current implementation is a local typed non-destructive MCP shell over stable `eu5miner` inspection, VFS, and mod-planning seams.
+- The active registered tools are `inspect-install`, `list-files`, `plan-mod-update`, `list-systems`, and `report-system`.
 - The CLI currently prints the startup status line and can describe the registered tools with `--describe`.
 - Full protocol transport, richer entity tools, and write-capable workflows are still future work.
 - Parsing, VFS, and domain logic should continue to live in the core `eu5miner` library.
@@ -27,6 +27,7 @@ The preview shell currently exposes a narrow read-only registry:
 
 - `inspect-install`: summarize discovered install roots and ordered content sources
 - `list-files`: list merged visible files for one content phase and optional subpath
+- `plan-mod-update`: plan a mod update and return both the formatted report and structured write metadata without applying changes
 - `list-systems`: list the stable system reports exposed by the core inspection facade
 - `report-system`: build a higher-level report for one supported system
 
