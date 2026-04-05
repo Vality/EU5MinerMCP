@@ -10,7 +10,7 @@ The checked-in spec describes the baseline repo and server-shell work that has a
 
 - `read-only-server.md`: completed foundation for the launchable MCP shell, CLI entrypoint, and initial repo structure
 
-Since that spec was written, the repo has moved beyond shell-only status and now exposes install, file, system, and mod workflow tools.
+Since that spec was written, the repo has moved beyond shell-only status and now exposes install, file, system, entity-browsing, and mod workflow tools.
 
 No new follow-on MCP spec is checked in yet.
 
