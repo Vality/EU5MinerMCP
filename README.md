@@ -23,7 +23,7 @@ The current surface is intentionally narrow: the first real MCP slices wrap stab
 
 The checked-in repo is now aligned to the coordinated `eu5miner` `v0.6.0` release tag instead of a moving mainline revision.
 
-The `0.6.0` preview line reflects the completed step-2 grouped-helper breadth for the current MCP surface: `report-diplomacy-war-flow`, `report-diplomacy-graph`, and `report-religion-links` are the shipped helper-tool families, and that scope remains the explicit preview boundary for helper-specific MCP work. Follow-on work should keep validation, build, test, and contract coherence green before widening helper scope again.
+The `0.6.0` preview line reflects the completed step-2 grouped-helper breadth for the current MCP surface: `report-diplomacy-war-flow`, `report-diplomacy-graph`, and `report-religion-links` are the shipped helper-tool families, and that scope remains the explicit preview boundary for helper-specific MCP work. The immediate post-release phase should keep validation, build, test, and contract coherence green before widening helper scope again.
 
 ## Current Shell Behavior
 

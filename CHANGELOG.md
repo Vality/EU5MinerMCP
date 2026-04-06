@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+No unreleased changes recorded after `0.6.0`.
+
 ## 0.6.0 - 2026-04-06
 
 - Expanded the running MCP registry from the `v0.5.0` install/file/system baseline to a 14-tool preview surface.

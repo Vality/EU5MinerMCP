@@ -17,13 +17,13 @@ The current `0.6.0` preview baseline now includes:
 - read-only diplomacy war-flow, diplomacy-graph, and religion link reporting over representative install files without MCP-local parser logic
 - mod update planning and apply workflows surfaced through the MCP repo without duplicating parser or VFS logic
 
-That checked-in state now covers the coordinated `0.6.0` preview surface, including the completed step-2 grouped-helper breadth through diplomacy and religion. After this release prep, follow-on work should keep validation, build, test, and contract coherence aligned to that shipped surface rather than widening helper breadth again immediately.
+That checked-in state now covers the coordinated `0.6.0` preview surface, including the completed step-2 grouped-helper breadth through diplomacy and religion. With that release now published, follow-on work should keep validation, build, test, and tool-contract coherence aligned to the shipped surface rather than widening helper breadth again immediately.
 
 ## Next Recommended Order
 
-### 1. Validation, Build, Test, And Preview Release Readiness
+### 1. Post-0.6.0 Stabilization And Tool Contract Maintenance
 
-Goal: validate and document the current narrow tool surface before widening scope again.
+Goal: validate and document the current narrow tool surface after release before widening scope again.
 
 Use this slice for:
 
@@ -35,7 +35,7 @@ Use this slice for:
 - smaller contract refinements around the now-shipped runtime self-description payload rather than new server foundation work
 - documentation and release notes that reflect the actual active tool registry
 
-Do not use this slice to add new helper families before the release-readiness work is in place.
+Do not use this slice to add new helper families before the post-release contract pass is settled.
 
 ### 2. Grouped Helper Tools Over Stable Grouped Packages
 
@@ -78,7 +78,7 @@ Boundary preserved by the shipped religion follow-on:
 
 Goal: keep the local shell easy to evolve into a fuller MCP server without promising more than is implemented.
 
-Do not treat this as the current next major phase while validation, build, test, and release-readiness work is still open.
+Do not treat this as the current next major phase while the post-`0.6.0` validation and contract-maintenance pass is still open.
 
 Use this slice for:
 
