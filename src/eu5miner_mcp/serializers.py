@@ -16,6 +16,7 @@ from eu5miner import (
     ModUpdateWrite,
     PlannedModUpdate,
 )
+from eu5miner.domains.diplomacy import WarFlowReport, WarReferenceEdge
 from eu5miner.inspection import (
     EntityDetail,
     EntityReference,
@@ -142,6 +143,40 @@ def serialize_system_report(report: SystemReport) -> dict[str, JSONValue]:
         "description": report.description,
         "representative_keys": list(report.representative_keys),
         "summary_lines": list(report.summary_lines),
+    }
+
+
+def serialize_diplomacy_war_flow_report(
+    report: WarFlowReport,
+    *,
+    representative_files: Sequence[tuple[str, Path]],
+) -> dict[str, JSONValue]:
+    return {
+        "representative_files": [
+            {"key": key, "path": str(path)} for key, path in representative_files
+        ],
+        "summary": {
+            "casus_belli_wargoal_links": len(report.casus_belli_wargoal_links),
+            "peace_treaty_casus_belli_links": len(report.peace_treaty_casus_belli_links),
+            "peace_treaty_subject_type_links": len(report.peace_treaty_subject_type_links),
+            "missing_wargoal_references": len(report.missing_wargoal_references),
+            "missing_casus_belli_references": len(report.missing_casus_belli_references),
+            "missing_subject_type_references": len(report.missing_subject_type_references),
+        },
+        "casus_belli_wargoal_links": [
+            _serialize_war_reference_edge(edge) for edge in report.casus_belli_wargoal_links
+        ],
+        "peace_treaty_casus_belli_links": [
+            _serialize_war_reference_edge(edge)
+            for edge in report.peace_treaty_casus_belli_links
+        ],
+        "peace_treaty_subject_type_links": [
+            _serialize_war_reference_edge(edge)
+            for edge in report.peace_treaty_subject_type_links
+        ],
+        "missing_wargoal_references": list(report.missing_wargoal_references),
+        "missing_casus_belli_references": list(report.missing_casus_belli_references),
+        "missing_subject_type_references": list(report.missing_subject_type_references),
     }
 
 
@@ -311,6 +346,13 @@ def _serialize_entity_reference(reference: EntityReference) -> dict[str, JSONVal
         "system": reference.system,
         "entity_kind": reference.entity_kind,
         "target_name": reference.target_name,
+    }
+
+
+def _serialize_war_reference_edge(edge: WarReferenceEdge) -> dict[str, JSONValue]:
+    return {
+        "source_name": edge.source_name,
+        "referenced_names": list(edge.referenced_names),
     }
 
 

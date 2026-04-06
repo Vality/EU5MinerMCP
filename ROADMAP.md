@@ -9,8 +9,10 @@ The current preview baseline now includes:
 - repo and package alignment with the core library workflow
 - a launchable typed MCP shell and CLI entrypoint
 - registered install, file, system, and mod workflow tools over stable core seams
+- a first targeted diplomacy helper tool over the grouped `eu5miner.domains.diplomacy` seam and representative install files
 - a registry-backed `describe-server` self-description tool over the shared runtime metadata, stdio instructions, tool-name counts, and active tool descriptors
 - read-only install inspection, merged-file listing, supported-system listing, and per-system reporting
+- read-only diplomacy war-flow reporting over representative install files without MCP-local parser logic
 - mod update planning and apply workflows surfaced through the MCP repo without duplicating parser or VFS logic
 
 That means the next work should tighten and extend the shipped server surface, not restart repo or shell foundation work.
@@ -30,7 +32,24 @@ Use this slice for:
 - smaller contract refinements around the now-shipped runtime self-description payload rather than new server foundation work
 - documentation that reflects the actual active tool registry
 
-### 2. Server Boundary And Transport Readiness
+### 2. Diplomacy Helper Tools Over Stable Grouped Packages
+
+Goal: make the first step-2 implementation slice a thin MCP wrapper over the stable diplomacy helper surface already curated in the core grouped package.
+
+Execution spec: `documents/specs/diplomacy-helper-tools.md`
+
+Use this slice for:
+
+- read-only diplomacy helper tools over `eu5miner.domains.diplomacy`
+- thin install-backed loading through stable core seams such as `GameInstall` and grouped-package parsers and helper builders
+- explicit machine-readable serializers for one concrete helper family before adding helper tools for other systems
+- contract tests that keep tool names, schemas, and response shapes explicit
+
+The first landed slice in this category is `report-diplomacy-war-flow`.
+
+Do not use this slice to invent ad hoc graph traversal, parser logic, or a broad helper-query framework in the MCP layer.
+
+### 3. Server Boundary And Transport Readiness
 
 Goal: keep the local shell easy to evolve into a fuller MCP server without promising more than is implemented.
 
@@ -40,13 +59,13 @@ Use this slice for:
 - clearer server lifecycle boundaries
 - tests that protect the current typed shell surface
 
-### 3. Targeted Tool Expansion Only Where The Core Seam Exists
+### 4. Targeted Tool Expansion Only Where The Core Seam Exists
 
 Goal: add new tools only when they are thin wrappers over an already-curated library surface.
 
 Do not use this repo to invent parser or domain logic that belongs in `eu5miner`.
 
-### 4. Mod Workflow Hardening
+### 5. Mod Workflow Hardening
 
 Goal: improve ergonomics and safety around the existing plan and apply workflows before taking on broader write scope.
 
