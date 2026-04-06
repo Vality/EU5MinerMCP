@@ -5,6 +5,7 @@ from pathlib import Path
 import eu5miner.inspection as inspection
 import pytest
 from eu5miner import GameInstall
+from mcp.types import CallToolResult, TextContent, Tool
 
 import eu5miner_mcp.tools.entities as entity_tools
 import eu5miner_mcp.tools.mods as mod_tools
@@ -16,6 +17,7 @@ from eu5miner_mcp.serializers import (
     serialize_entity_detail,
     serialize_entity_links,
     serialize_status_message,
+    serialize_system_list,
 )
 from eu5miner_mcp.server import build_server, build_startup_message
 from eu5miner_mcp.tools import (
@@ -29,6 +31,7 @@ from eu5miner_mcp.tools.entities import DescribeEntityRequest, FindEntityRequest
 from eu5miner_mcp.tools.files import ListFilesRequest, list_files
 from eu5miner_mcp.tools.install import InspectInstallRequest, inspect_install
 from eu5miner_mcp.tools.systems import GetSystemReportRequest, list_systems
+from eu5miner_mcp.transport import MCPServerTransportAdapter
 
 
 def test_build_startup_message_lists_real_tool_names() -> None:
@@ -685,6 +688,66 @@ def test_server_dispatches_registered_tools(tmp_path: Path) -> None:
     assert "Entity links: economy/good/iron" in list_entity_links_response.text
 
 
+def test_transport_adapter_lists_sdk_tools_from_internal_registry() -> None:
+    adapter = MCPServerTransportAdapter(build_server())
+
+    tools = adapter.list_tools()
+
+    assert tools
+    assert all(isinstance(tool, Tool) for tool in tools)
+    assert [tool.name for tool in tools] == [
+        "inspect-install",
+        "list-files",
+        "plan-mod-update",
+        "apply-mod-update",
+        "list-systems",
+        "report-system",
+        "list-entity-systems",
+        "find-entity",
+        "describe-entity",
+        "list-entity-links",
+    ]
+    assert tools[0].inputSchema == describe_install_tools()[0].input_schema
+
+
+def test_transport_adapter_wraps_tool_result_as_sdk_payload() -> None:
+    adapter = MCPServerTransportAdapter(build_server())
+
+    result = adapter.call_tool("list-systems")
+
+    assert isinstance(result, CallToolResult)
+    assert result.isError is False
+    assert result.structuredContent == serialize_system_list(list_systems())
+    assert result.content == [TextContent(type="text", text=result.content[0].text)]
+    assert result.content[0].text.startswith("Supported system reports:\n")
+    assert "- economy:" in result.content[0].text
+    assert "- government:" in result.content[0].text
+    assert "- map:" in result.content[0].text
+
+
+def test_transport_adapter_returns_protocol_safe_tool_errors() -> None:
+    adapter = MCPServerTransportAdapter(build_server())
+    expected_error = (
+        "Unknown tool 'missing-tool'. Valid tools: inspect-install, list-files, "
+        "plan-mod-update, apply-mod-update, list-systems, report-system, "
+        "list-entity-systems, find-entity, describe-entity, list-entity-links"
+    )
+
+    result = adapter.call_tool("missing-tool")
+
+    assert result.isError is True
+    assert result.structuredContent == {
+        "error": expected_error,
+        "error_type": "KeyError",
+    }
+    assert result.content == [
+        TextContent(
+            type="text",
+            text=f"KeyError: {expected_error}",
+        )
+    ]
+
+
 def test_cli_main_describe_prints_registered_tools(capsys) -> None:
     assert main(["--describe"]) == 0
     captured = capsys.readouterr()
@@ -699,6 +762,33 @@ def test_cli_main_describe_prints_registered_tools(capsys) -> None:
     assert "list-systems" in captured.out
 
 
+def test_cli_main_stdio_does_not_print_to_stdout(capsys, monkeypatch) -> None:
+    observed: dict[str, object] = {}
+
+    def fake_run_stdio_server(server) -> int:
+        observed["tool_names"] = [descriptor.name for descriptor in server.describe_tools()]
+        return 0
+
+    monkeypatch.setattr("eu5miner_mcp.cli.run_stdio_server", fake_run_stdio_server)
+
+    assert main(["--stdio"]) == 0
+    captured = capsys.readouterr()
+
+    assert captured.out == ""
+    assert observed["tool_names"] == [
+        "inspect-install",
+        "list-files",
+        "plan-mod-update",
+        "apply-mod-update",
+        "list-systems",
+        "report-system",
+        "list-entity-systems",
+        "find-entity",
+        "describe-entity",
+        "list-entity-links",
+    ]
+
+
 def test_package_main_describe_prints_registered_tools(capsys) -> None:
     assert package_main(["--describe"]) == 0
     captured = capsys.readouterr()
@@ -711,6 +801,33 @@ def test_package_main_describe_prints_registered_tools(capsys) -> None:
     assert "list-entity-systems" in captured.out
     assert "plan-mod-update" in captured.out
     assert "list-systems" in captured.out
+
+
+def test_package_main_stdio_does_not_print_to_stdout(capsys, monkeypatch) -> None:
+    observed: dict[str, object] = {}
+
+    def fake_run_stdio_server(server) -> int:
+        observed["tool_names"] = [descriptor.name for descriptor in server.describe_tools()]
+        return 0
+
+    monkeypatch.setattr("eu5miner_mcp.cli.run_stdio_server", fake_run_stdio_server)
+
+    assert package_main(["--stdio"]) == 0
+    captured = capsys.readouterr()
+
+    assert captured.out == ""
+    assert observed["tool_names"] == [
+        "inspect-install",
+        "list-files",
+        "plan-mod-update",
+        "apply-mod-update",
+        "list-systems",
+        "report-system",
+        "list-entity-systems",
+        "find-entity",
+        "describe-entity",
+        "list-entity-links",
+    ]
 
 
 def _make_synthetic_entity_install(root: Path) -> Path:

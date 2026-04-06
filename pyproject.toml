@@ -14,6 +14,7 @@ authors = [
 ]
 dependencies = [
   "eu5miner @ git+https://github.com/Vality/EU5Miner.git@main",
+  "mcp>=1.27.0,<2",
 ]
 
 [project.optional-dependencies]
@@ -30,7 +31,7 @@ eu5miner-mcp = "eu5miner_mcp.cli:main"
 packages = ["src/eu5miner_mcp"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"src/eu5miner_mcp/__main__.py" = "__main__.py"
+"src/eu5miner_mcp/__main__.py" = "eu5miner_mcp/__main__.py"
 
 [tool.hatch.metadata]
 allow-direct-references = true
