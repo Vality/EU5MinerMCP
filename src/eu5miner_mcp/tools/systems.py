@@ -9,7 +9,13 @@ from pathlib import Path
 import eu5miner.inspection as inspection
 from eu5miner import GameInstall
 
-from eu5miner_mcp.models import RegisteredTool, ToolDescriptor, ToolResponse
+from eu5miner_mcp.models import (
+    RegisteredTool,
+    ToolDescriptor,
+    ToolResponse,
+    closed_object_schema,
+    reject_unknown_arguments,
+)
 from eu5miner_mcp.serializers import serialize_system_list, serialize_system_report
 
 
@@ -43,8 +49,7 @@ def get_system_tools() -> tuple[RegisteredTool, ...]:
 
 
 def _invoke_list_systems(arguments: Mapping[str, object] | None = None) -> ToolResponse:
-    if arguments:
-        raise TypeError("list-systems does not accept arguments")
+    reject_unknown_arguments(arguments or {}, tool_name="list-systems", allowed_fields=())
     systems = list_systems()
     lines = ["Supported system reports:"]
     lines.extend(f"- {system.name}: {system.description}" for system in systems)
@@ -67,6 +72,11 @@ def _parse_get_system_report_request(
     arguments: Mapping[str, object] | None,
 ) -> GetSystemReportRequest:
     mapping = arguments or {}
+    reject_unknown_arguments(
+        mapping,
+        tool_name="report-system",
+        allowed_fields={"install_root", "system", "language"},
+    )
     system = mapping.get("system")
     if not isinstance(system, str):
         raise TypeError("system must be a string")
@@ -90,7 +100,7 @@ _LIST_SYSTEMS_TOOL = RegisteredTool(
     descriptor=ToolDescriptor(
         name="list-systems",
         description="List the stable system reports exposed by the core inspection facade.",
-        input_schema={"type": "object", "properties": {}},
+        input_schema=closed_object_schema(),
     ),
     invoke=_invoke_list_systems,
 )
@@ -100,9 +110,8 @@ _REPORT_SYSTEM_TOOL = RegisteredTool(
     descriptor=ToolDescriptor(
         name="report-system",
         description="Build a higher-level report for one supported system.",
-        input_schema={
-            "type": "object",
-            "properties": {
+        input_schema=closed_object_schema(
+            properties={
                 "install_root": {
                     "type": ["string", "null"],
                     "description": "Optional explicit EU5 install root.",
@@ -113,11 +122,12 @@ _REPORT_SYSTEM_TOOL = RegisteredTool(
                 },
                 "language": {
                     "type": "string",
+                    "default": "english",
                     "description": "Localization language used by language-sensitive reports.",
                 },
             },
-            "required": ["system"],
-        },
+            required=("system",),
+        ),
     ),
     invoke=_invoke_report_system,
 )

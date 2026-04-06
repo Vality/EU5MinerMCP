@@ -8,7 +8,13 @@ from pathlib import Path
 
 import eu5miner.inspection as inspection
 
-from eu5miner_mcp.models import RegisteredTool, ToolDescriptor, ToolResponse
+from eu5miner_mcp.models import (
+    RegisteredTool,
+    ToolDescriptor,
+    ToolResponse,
+    closed_object_schema,
+    reject_unknown_arguments,
+)
 from eu5miner_mcp.serializers import serialize_install_summary
 
 
@@ -46,6 +52,11 @@ def _parse_inspect_install_request(
     arguments: Mapping[str, object] | None,
 ) -> InspectInstallRequest:
     mapping = arguments or {}
+    reject_unknown_arguments(
+        mapping,
+        tool_name="inspect-install",
+        allowed_fields={"install_root", "mod_roots"},
+    )
     return InspectInstallRequest(
         install_root=_optional_path(mapping.get("install_root")),
         mod_roots=_path_tuple(mapping.get("mod_roots")),
@@ -78,9 +89,8 @@ _INSPECT_INSTALL_TOOL = RegisteredTool(
     descriptor=ToolDescriptor(
         name="inspect-install",
         description="Summarize the discovered install roots and ordered content sources.",
-        input_schema={
-            "type": "object",
-            "properties": {
+        input_schema=closed_object_schema(
+            properties={
                 "install_root": {
                     "type": ["string", "null"],
                     "description": "Optional explicit EU5 install root.",
@@ -91,7 +101,7 @@ _INSPECT_INSTALL_TOOL = RegisteredTool(
                     "items": {"type": "string"},
                 },
             },
-        },
+        ),
     ),
     invoke=_invoke_inspect_install,
 )

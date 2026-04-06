@@ -9,7 +9,13 @@ from pathlib import Path
 from eu5miner import ContentPhase, GameInstall, VirtualFilesystem
 from eu5miner.vfs import MergedFile
 
-from eu5miner_mcp.models import RegisteredTool, ToolDescriptor, ToolResponse
+from eu5miner_mcp.models import (
+    RegisteredTool,
+    ToolDescriptor,
+    ToolResponse,
+    closed_object_schema,
+    reject_unknown_arguments,
+)
 from eu5miner_mcp.serializers import serialize_file_listing
 
 
@@ -89,12 +95,19 @@ def _format_file_listing(listing: FileListing) -> str:
 
 def _parse_list_files_request(arguments: Mapping[str, object] | None) -> ListFilesRequest:
     mapping = arguments or {}
+    reject_unknown_arguments(
+        mapping,
+        tool_name="list-files",
+        allowed_fields={"install_root", "phase", "subpath", "limit", "mod_roots"},
+    )
     phase_value = mapping.get("phase")
     if not isinstance(phase_value, str):
         raise TypeError("phase must be one of loading_screen, main_menu, or in_game")
     limit_value = mapping.get("limit", 20)
-    if not isinstance(limit_value, int):
+    if isinstance(limit_value, bool) or not isinstance(limit_value, int):
         raise TypeError("limit must be an integer")
+    if limit_value < 1:
+        raise ValueError("limit must be at least 1")
     return ListFilesRequest(
         phase=ContentPhase(phase_value),
         install_root=_optional_path(mapping.get("install_root")),
@@ -136,9 +149,8 @@ _LIST_FILES_TOOL = RegisteredTool(
     descriptor=ToolDescriptor(
         name="list-files",
         description="List merged visible files for one content phase and optional subpath.",
-        input_schema={
-            "type": "object",
-            "properties": {
+        input_schema=closed_object_schema(
+            properties={
                 "install_root": {
                     "type": ["string", "null"],
                     "description": "Optional explicit EU5 install root.",
@@ -153,6 +165,8 @@ _LIST_FILES_TOOL = RegisteredTool(
                 },
                 "limit": {
                     "type": "integer",
+                    "minimum": 1,
+                    "default": 20,
                     "description": "Maximum number of merged files to return.",
                 },
                 "mod_roots": {
@@ -161,8 +175,8 @@ _LIST_FILES_TOOL = RegisteredTool(
                     "items": {"type": "string"},
                 },
             },
-            "required": ["phase"],
-        },
+            required=("phase",),
+        ),
     ),
     invoke=_invoke_list_files,
 )

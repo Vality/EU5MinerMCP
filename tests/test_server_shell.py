@@ -157,6 +157,38 @@ def test_tool_descriptors_are_typed_and_non_empty() -> None:
 
     assert descriptors
     assert all(isinstance(descriptor, ToolDescriptor) for descriptor in descriptors)
+    assert all(descriptor.input_schema["type"] == "object" for descriptor in descriptors)
+    assert all(
+        descriptor.input_schema["additionalProperties"] is False
+        for descriptor in descriptors
+    )
+
+
+def test_tool_descriptors_publish_runtime_argument_contracts() -> None:
+    list_files_schema = describe_file_tools()[0].input_schema
+    plan_schema, apply_schema = describe_mod_tools()
+    report_schema = describe_system_tools()[1].input_schema
+    find_entity_schema = describe_entity_tools()[1].input_schema
+
+    assert list_files_schema["properties"]["limit"] == {
+        "type": "integer",
+        "minimum": 1,
+        "default": 20,
+        "description": "Maximum number of merged files to return.",
+    }
+    assert report_schema["properties"]["language"]["default"] == "english"
+    assert find_entity_schema["properties"]["limit"]["minimum"] == 1
+    assert find_entity_schema["properties"]["limit"]["default"] == 20
+    assert plan_schema.input_schema["anyOf"] == [
+        {"required": ["intended_paths"]},
+        {"required": ["content_by_relative_path"]},
+    ]
+    assert plan_schema.input_schema["properties"]["intended_paths"]["minItems"] == 1
+    assert (
+        plan_schema.input_schema["properties"]["content_by_relative_path"]["minProperties"]
+        == 1
+    )
+    assert apply_schema.input_schema["properties"]["overwrite"]["default"] is True
 
 
 def test_describe_entity_tools_expose_real_entity_browsing_slice() -> None:
@@ -404,6 +436,17 @@ def test_plan_mod_update_requires_paths_or_content(tmp_path: Path) -> None:
                 phase=inspection.ContentPhase.IN_GAME,
                 subtree=Path("common") / "buildings",
             )
+        )
+
+
+def test_list_files_requires_positive_limit() -> None:
+    with pytest.raises(ValueError, match="limit must be at least 1"):
+        build_server().call_tool(
+            "list-files",
+            {
+                "phase": "in_game",
+                "limit": 0,
+            },
         )
 
 
@@ -744,6 +787,24 @@ def test_transport_adapter_returns_protocol_safe_tool_errors() -> None:
         TextContent(
             type="text",
             text=f"KeyError: {expected_error}",
+        )
+    ]
+
+
+def test_transport_adapter_rejects_unexpected_tool_arguments() -> None:
+    adapter = MCPServerTransportAdapter(build_server())
+
+    result = adapter.call_tool("list-systems", {"unexpected": True})
+
+    assert result.isError is True
+    assert result.structuredContent == {
+        "error": "list-systems got unexpected arguments: unexpected",
+        "error_type": "TypeError",
+    }
+    assert result.content == [
+        TextContent(
+            type="text",
+            text="TypeError: list-systems got unexpected arguments: unexpected",
         )
     ]
 

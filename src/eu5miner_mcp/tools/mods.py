@@ -23,7 +23,13 @@ from eu5miner import (
     plan_mod_update as plan_core_mod_update,
 )
 
-from eu5miner_mcp.models import RegisteredTool, ToolDescriptor, ToolResponse
+from eu5miner_mcp.models import (
+    RegisteredTool,
+    ToolDescriptor,
+    ToolResponse,
+    closed_object_schema,
+    reject_unknown_arguments,
+)
 from eu5miner_mcp.serializers import (
     serialize_applied_mod_update,
     serialize_planned_mod_update,
@@ -153,6 +159,20 @@ def _parse_apply_mod_update_request(
 
 
 def _build_plan_mod_update_request(mapping: Mapping[str, object]) -> PlanModUpdateRequest:
+    reject_unknown_arguments(
+        mapping,
+        tool_name="plan-mod-update",
+        allowed_fields={
+            "install_root",
+            "mod_root",
+            "later_mod_roots",
+            "phase",
+            "subtree",
+            "intended_paths",
+            "content_by_relative_path",
+            "overwrite",
+        },
+    )
     phase_value = mapping.get("phase")
     if not isinstance(phase_value, str):
         raise TypeError("phase must be one of loading_screen, main_menu, or in_game")
@@ -244,9 +264,8 @@ _PLAN_MOD_UPDATE_TOOL = RegisteredTool(
     descriptor=ToolDescriptor(
         name="plan-mod-update",
         description="Plan a non-destructive mod update over the core mod workflow API.",
-        input_schema={
-            "type": "object",
-            "properties": {
+        input_schema=closed_object_schema(
+            properties={
                 "install_root": {
                     "type": ["string", "null"],
                     "description": "Optional explicit EU5 install root.",
@@ -270,6 +289,7 @@ _PLAN_MOD_UPDATE_TOOL = RegisteredTool(
                 },
                 "intended_paths": {
                     "type": "array",
+                    "minItems": 1,
                     "description": (
                         "Optional phase-relative intended output paths, used even when no content "
                         "string is supplied."
@@ -278,14 +298,19 @@ _PLAN_MOD_UPDATE_TOOL = RegisteredTool(
                 },
                 "content_by_relative_path": {
                     "type": "object",
+                    "minProperties": 1,
                     "description": (
                         "Optional mapping of phase-relative output paths to planned file content."
                     ),
                     "additionalProperties": {"type": "string"},
                 },
             },
-            "required": ["mod_root", "phase", "subtree"],
-        },
+            required=("mod_root", "phase", "subtree"),
+            any_of=(
+                {"required": ["intended_paths"]},
+                {"required": ["content_by_relative_path"]},
+            ),
+        ),
     ),
     invoke=_invoke_plan_mod_update,
 )
@@ -295,9 +320,8 @@ _APPLY_MOD_UPDATE_TOOL = RegisteredTool(
     descriptor=ToolDescriptor(
         name="apply-mod-update",
         description="Apply a planned mod update over the core mod workflow API.",
-        input_schema={
-            "type": "object",
-            "properties": {
+        input_schema=closed_object_schema(
+            properties={
                 "install_root": {
                     "type": ["string", "null"],
                     "description": "Optional explicit EU5 install root.",
@@ -321,6 +345,7 @@ _APPLY_MOD_UPDATE_TOOL = RegisteredTool(
                 },
                 "intended_paths": {
                     "type": "array",
+                    "minItems": 1,
                     "description": (
                         "Optional phase-relative intended output paths, used even when no content "
                         "string is supplied."
@@ -329,6 +354,7 @@ _APPLY_MOD_UPDATE_TOOL = RegisteredTool(
                 },
                 "content_by_relative_path": {
                     "type": "object",
+                    "minProperties": 1,
                     "description": (
                         "Optional mapping of phase-relative output paths to applied file content."
                     ),
@@ -336,13 +362,18 @@ _APPLY_MOD_UPDATE_TOOL = RegisteredTool(
                 },
                 "overwrite": {
                     "type": "boolean",
+                    "default": True,
                     "description": (
                         "Whether existing target files may be overwritten. Defaults to true."
                     ),
                 },
             },
-            "required": ["mod_root", "phase", "subtree"],
-        },
+            required=("mod_root", "phase", "subtree"),
+            any_of=(
+                {"required": ["intended_paths"]},
+                {"required": ["content_by_relative_path"]},
+            ),
+        ),
     ),
     invoke=_invoke_apply_mod_update,
 )

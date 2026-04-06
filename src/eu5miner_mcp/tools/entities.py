@@ -9,7 +9,13 @@ from pathlib import Path
 import eu5miner.inspection as inspection
 from eu5miner import GameInstall
 
-from eu5miner_mcp.models import RegisteredTool, ToolDescriptor, ToolResponse
+from eu5miner_mcp.models import (
+    RegisteredTool,
+    ToolDescriptor,
+    ToolResponse,
+    closed_object_schema,
+    reject_unknown_arguments,
+)
 from eu5miner_mcp.serializers import (
     serialize_entity_detail,
     serialize_entity_links,
@@ -105,8 +111,11 @@ def get_entity_tools() -> tuple[RegisteredTool, ...]:
 
 
 def _invoke_list_entity_systems(arguments: Mapping[str, object] | None = None) -> ToolResponse:
-    if arguments:
-        raise TypeError("list-entity-systems does not accept arguments")
+    reject_unknown_arguments(
+        arguments or {},
+        tool_name="list-entity-systems",
+        allowed_fields=(),
+    )
     systems = list_entity_systems()
     lines = ["Browsable entity systems:"]
     lines.extend(
@@ -193,6 +202,11 @@ def _invoke_list_entity_links(arguments: Mapping[str, object] | None = None) -> 
 
 def _parse_find_entity_request(arguments: Mapping[str, object] | None) -> FindEntityRequest:
     mapping = arguments or {}
+    reject_unknown_arguments(
+        mapping,
+        tool_name="find-entity",
+        allowed_fields={"install_root", "system", "name_contains", "limit", "mod_roots"},
+    )
     system = mapping.get("system")
     if not isinstance(system, str):
         raise TypeError("system must be a string")
@@ -200,7 +214,7 @@ def _parse_find_entity_request(arguments: Mapping[str, object] | None) -> FindEn
     if name_contains_value is not None and not isinstance(name_contains_value, str):
         raise TypeError("name_contains must be a string")
     limit_value = mapping.get("limit", 20)
-    if not isinstance(limit_value, int):
+    if isinstance(limit_value, bool) or not isinstance(limit_value, int):
         raise TypeError("limit must be an integer")
     if limit_value < 1:
         raise ValueError("limit must be at least 1")
@@ -217,6 +231,11 @@ def _parse_describe_entity_request(
     arguments: Mapping[str, object] | None,
 ) -> DescribeEntityRequest:
     mapping = arguments or {}
+    reject_unknown_arguments(
+        mapping,
+        tool_name="describe-entity",
+        allowed_fields={"install_root", "system", "name", "mod_roots"},
+    )
     system = mapping.get("system")
     if not isinstance(system, str):
         raise TypeError("system must be a string")
@@ -275,9 +294,8 @@ def _coerce_path(value: object) -> Path:
     raise TypeError(f"Expected a path-like string, got {type(value).__name__}")
 
 
-_ENTITY_LOOKUP_INPUT_SCHEMA: dict[str, object] = {
-    "type": "object",
-    "properties": {
+_ENTITY_LOOKUP_INPUT_SCHEMA = closed_object_schema(
+    properties={
         "install_root": {
             "type": ["string", "null"],
             "description": "Optional explicit EU5 install root.",
@@ -296,8 +314,8 @@ _ENTITY_LOOKUP_INPUT_SCHEMA: dict[str, object] = {
             "items": {"type": "string"},
         },
     },
-    "required": ["system", "name"],
-}
+    required=("system", "name"),
+)
 
 
 _LIST_ENTITY_SYSTEMS_TOOL = RegisteredTool(
@@ -307,7 +325,7 @@ _LIST_ENTITY_SYSTEMS_TOOL = RegisteredTool(
             "List the browseable entity systems and their primary entity families from the "
             "core inspection facade."
         ),
-        input_schema={"type": "object", "properties": {}},
+        input_schema=closed_object_schema(),
     ),
     invoke=_invoke_list_entity_systems,
 )
@@ -320,9 +338,8 @@ _FIND_ENTITY_TOOL = RegisteredTool(
             "Browse one entity system over the core inspection facade, with optional "
             "case-insensitive name filtering."
         ),
-        input_schema={
-            "type": "object",
-            "properties": {
+        input_schema=closed_object_schema(
+            properties={
                 "install_root": {
                     "type": ["string", "null"],
                     "description": "Optional explicit EU5 install root.",
@@ -337,6 +354,8 @@ _FIND_ENTITY_TOOL = RegisteredTool(
                 },
                 "limit": {
                     "type": "integer",
+                    "minimum": 1,
+                    "default": 20,
                     "description": "Maximum number of matching entity summaries to return.",
                 },
                 "mod_roots": {
@@ -345,8 +364,8 @@ _FIND_ENTITY_TOOL = RegisteredTool(
                     "items": {"type": "string"},
                 },
             },
-            "required": ["system"],
-        },
+            required=("system",),
+        ),
     ),
     invoke=_invoke_find_entity,
 )
