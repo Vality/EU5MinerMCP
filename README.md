@@ -14,8 +14,9 @@ The current surface is intentionally narrow: the first real MCP slices wrap stab
 
 - The `0.5.x` line should be treated as a public preview rather than a stable `1.0` API.
 - The current implementation is a typed MCP server shell over stable `eu5miner` inspection, VFS, entity-browsing, and mod workflow seams.
-- The active registered tools are `inspect-install`, `list-files`, `list-systems`, `report-system`, `list-entity-systems`, `find-entity`, `describe-entity`, `list-entity-links`, `plan-mod-update`, and `apply-mod-update`.
+- The active registered tools are `inspect-install`, `list-files`, `list-systems`, `report-system`, `list-entity-systems`, `find-entity`, `describe-entity`, `list-entity-links`, `plan-mod-update`, `apply-mod-update`, and `describe-server`.
 - The CLI can still print the startup status line, describe the registered tools with `--describe`, and now serve the same registry over real stdio MCP transport with `--stdio`.
+- MCP clients can now call `describe-server` to retrieve display, server, and package names, version, available transports, tool names and counts, write-tool names and counts, stdio instructions, and the live registered tool descriptors from the same shared registry the CLI and stdio transport use.
 - Broader cross-entity graph tooling is still future work.
 - Parsing, VFS, and domain logic should continue to live in the core `eu5miner` library.
 
@@ -25,6 +26,7 @@ The checked-in entity-browsing slice now depends on the current `eu5miner` mainl
 
 The preview shell currently exposes a narrow tool registry:
 
+- `describe-server`: describe the runtime metadata, transports, tool and write-tool counts, stdio instructions, confirmation requirements, and current registered MCP tool descriptors
 - `inspect-install`: summarize discovered install roots and ordered content sources
 - `list-files`: list merged visible files for one content phase and optional subpath
 - `list-systems`: list the stable system reports exposed by the core inspection facade
@@ -38,9 +40,9 @@ The preview shell currently exposes a narrow tool registry:
 
 The entity-browsing slice is intentionally narrow. It wraps the core `eu5miner.inspection` browseable subset instead of inventing a generic graph API in the MCP layer, so the current real entity tools cover `economy` goods, `government` government types, `religion` religions, and `map` locations. The `list-entity-links` tool is only a convenience view over the same core reference list already returned by `describe-entity`; it does not introduce separate graph traversal behavior in the MCP layer.
 
-The mod workflow is also intentionally conservative at the MCP boundary: `plan-mod-update` remains the dry-run entrypoint, and `apply-mod-update` now requires an explicit `confirm=true` argument so hosted or interactive clients do not trigger writes accidentally.
+The mod workflow is also intentionally conservative at the MCP boundary: `plan-mod-update` remains the dry-run entrypoint, `apply-mod-update` requires an explicit `confirm=true` argument so hosted or interactive clients do not trigger writes accidentally, and `describe-server` exposes that same write-confirmation boundary together with the stdio startup instructions and active tool-name registry in a machine-readable form.
 
-At this stage the package is best understood as a thin typed MCP-facing server and CLI entrypoint over a narrow inspection, entity-browsing, and mod workflow surface, not as a broad production MCP integration.
+At this stage the package is best understood as a thin typed MCP-facing server and CLI entrypoint over a narrow inspection, entity-browsing, runtime-description, and mod workflow surface, not as a broad production MCP integration.
 
 ## Development
 

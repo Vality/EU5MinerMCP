@@ -16,6 +16,7 @@ from eu5miner_mcp.models import ToolDescriptor
 from eu5miner_mcp.serializers import (
     serialize_entity_detail,
     serialize_entity_links,
+    serialize_server_description,
     serialize_status_message,
     serialize_system_list,
 )
@@ -25,6 +26,7 @@ from eu5miner_mcp.tools import (
     describe_file_tools,
     describe_install_tools,
     describe_mod_tools,
+    describe_server_tools,
     describe_system_tools,
 )
 from eu5miner_mcp.tools.entities import DescribeEntityRequest, FindEntityRequest, find_entities
@@ -44,6 +46,7 @@ def test_build_startup_message_lists_real_tool_names() -> None:
     assert "Write tools require explicit confirm=true: apply-mod-update." in message
     assert "apply-mod-update" in message
     assert "describe-entity" in message
+    assert "describe-server" in message
     assert "find-entity" in message
     assert "inspect-install" in message
     assert "list-entity-systems" in message
@@ -62,6 +65,42 @@ def test_serialize_status_message_includes_tool_names() -> None:
     }
 
 
+def test_serialize_server_description_includes_runtime_and_tools() -> None:
+    server = build_server()
+    runtime = build_server_runtime(server)
+
+    payload = serialize_server_description(
+        runtime,
+        server.describe_tools(),
+        status_message=build_startup_message(server),
+    )
+
+    assert payload["display_name"] == "EU5MinerMCP"
+    assert payload["package_name"] == "eu5miner-mcp"
+    assert payload["server_name"] == "eu5miner-mcp"
+    assert payload["version"] == runtime.version
+    assert payload["transports"] == ["local-shell", "stdio"]
+    assert payload["tool_names"] == list(runtime.tool_names)
+    assert payload["tool_count"] == runtime.tool_count
+    assert payload["write_tool_names"] == ["apply-mod-update"]
+    assert payload["write_tool_count"] == 1
+    assert payload["stdio_instructions"] == runtime.build_stdio_instructions()
+    tools = payload["tools"]
+    assert isinstance(tools, list)
+    assert any(
+        isinstance(tool, dict)
+        and tool["name"] == "describe-server"
+        and tool["requires_confirmation"] is False
+        for tool in tools
+    )
+    assert any(
+        isinstance(tool, dict)
+        and tool["name"] == "apply-mod-update"
+        and tool["requires_confirmation"] is True
+        for tool in tools
+    )
+
+
 def test_build_server_runtime_exposes_package_version_and_transports() -> None:
     runtime = build_server_runtime()
 
@@ -74,6 +113,7 @@ def test_build_server_runtime_exposes_package_version_and_transports() -> None:
     assert runtime.write_tool_names == ("apply-mod-update",)
     assert runtime.write_tool_count == 1
     assert runtime.tool_names[0] == "inspect-install"
+    assert runtime.tool_names[-1] == "describe-server"
 
 
 def test_server_runtime_builds_stdio_instructions_from_registry() -> None:
@@ -84,6 +124,7 @@ def test_server_runtime_builds_stdio_instructions_from_registry() -> None:
     assert f"EU5MinerMCP {runtime.version}" in instructions
     assert f"Available tools ({runtime.tool_count}):" in instructions
     assert "Write tools require explicit confirm=true: apply-mod-update." in instructions
+    assert "describe-server" in instructions
     assert "list-systems" in instructions
     assert "describe-entity" in instructions
 
@@ -183,6 +224,7 @@ def test_tool_descriptors_are_typed_and_non_empty() -> None:
         *describe_mod_tools(),
         *describe_system_tools(),
         *describe_entity_tools(),
+        *describe_server_tools(),
     )
 
     assert descriptors
@@ -199,6 +241,7 @@ def test_tool_descriptors_publish_runtime_argument_contracts() -> None:
     plan_schema, apply_schema = describe_mod_tools()
     report_schema = describe_system_tools()[1].input_schema
     find_entity_schema = describe_entity_tools()[1].input_schema
+    describe_server_schema = describe_server_tools()[0].input_schema
 
     assert list_files_schema["properties"]["limit"] == {
         "type": "integer",
@@ -209,6 +252,11 @@ def test_tool_descriptors_publish_runtime_argument_contracts() -> None:
     assert report_schema["properties"]["language"]["default"] == "english"
     assert find_entity_schema["properties"]["limit"]["minimum"] == 1
     assert find_entity_schema["properties"]["limit"]["default"] == 20
+    assert describe_server_schema == {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": False,
+    }
     assert plan_schema.input_schema["anyOf"] == [
         {"required": ["intended_paths"]},
         {"required": ["content_by_relative_path"]},
@@ -238,6 +286,12 @@ def test_describe_entity_tools_expose_real_entity_browsing_slice() -> None:
         "describe-entity",
         "list-entity-links",
     ]
+
+
+def test_describe_server_tools_expose_runtime_descriptor_slice() -> None:
+    descriptor_names = [descriptor.name for descriptor in describe_server_tools()]
+
+    assert descriptor_names == ["describe-server"]
 
 
 def test_inspect_install_tool_uses_core_facade(tmp_path: Path) -> None:
@@ -666,6 +720,7 @@ def test_server_dispatches_registered_tools(tmp_path: Path) -> None:
             "name": "iron",
         },
     )
+    describe_server_response = server.call_tool("describe-server")
 
     assert install_response.structured_content["root"] == str(install_root)
     assert file_response.structured_content["total_count"] == 1
@@ -805,6 +860,46 @@ def test_server_dispatches_registered_tools(tmp_path: Path) -> None:
         ],
     }
     assert "Entity links: economy/good/iron" in list_entity_links_response.text
+    assert describe_server_response.structured_content["display_name"] == "EU5MinerMCP"
+    assert describe_server_response.structured_content["server_name"] == "eu5miner-mcp"
+    assert describe_server_response.structured_content["version"]
+    assert describe_server_response.structured_content["tool_names"] == [
+        "inspect-install",
+        "list-files",
+        "plan-mod-update",
+        "apply-mod-update",
+        "list-systems",
+        "report-system",
+        "list-entity-systems",
+        "find-entity",
+        "describe-entity",
+        "list-entity-links",
+        "describe-server",
+    ]
+    assert describe_server_response.structured_content["tool_count"] == 11
+    assert describe_server_response.structured_content["write_tool_names"] == [
+        "apply-mod-update"
+    ]
+    assert describe_server_response.structured_content["write_tool_count"] == 1
+    assert (
+        describe_server_response.structured_content["stdio_instructions"]
+        == build_server_runtime(server).build_stdio_instructions()
+    )
+    describe_server_tools_payload = describe_server_response.structured_content["tools"]
+    assert isinstance(describe_server_tools_payload, list)
+    assert any(
+        isinstance(tool, dict)
+        and tool["name"] == "describe-server"
+        and tool["requires_confirmation"] is False
+        for tool in describe_server_tools_payload
+    )
+    assert "Registered tools (11):" in describe_server_response.text
+    assert "Display name: EU5MinerMCP" in describe_server_response.text
+    assert "Version: " in describe_server_response.text
+    assert "Stdio instructions: EU5MinerMCP " in describe_server_response.text
+    assert "describe-server: Describe the current server runtime metadata" in (
+        describe_server_response.text
+    )
 
 
 def test_transport_adapter_lists_sdk_tools_from_internal_registry() -> None:
@@ -825,6 +920,7 @@ def test_transport_adapter_lists_sdk_tools_from_internal_registry() -> None:
         "find-entity",
         "describe-entity",
         "list-entity-links",
+        "describe-server",
     ]
     assert tools[0].inputSchema == describe_install_tools()[0].input_schema
 
@@ -860,7 +956,8 @@ def test_transport_adapter_returns_protocol_safe_tool_errors() -> None:
     expected_error = (
         "Unknown tool 'missing-tool'. Valid tools: inspect-install, list-files, "
         "plan-mod-update, apply-mod-update, list-systems, report-system, "
-        "list-entity-systems, find-entity, describe-entity, list-entity-links"
+        "list-entity-systems, find-entity, describe-entity, list-entity-links, "
+        "describe-server"
     )
 
     result = adapter.call_tool("missing-tool")
@@ -907,6 +1004,7 @@ def test_cli_main_describe_prints_registered_tools(capsys) -> None:
     assert f"Registered tools ({runtime.tool_count}):" in captured.out
     assert "apply-mod-update" in captured.out
     assert "describe-entity" in captured.out
+    assert "describe-server" in captured.out
     assert "find-entity" in captured.out
     assert "inspect-install" in captured.out
     assert "list-entity-links" in captured.out
@@ -944,6 +1042,7 @@ def test_cli_main_stdio_does_not_print_to_stdout(capsys, monkeypatch) -> None:
         "find-entity",
         "describe-entity",
         "list-entity-links",
+        "describe-server",
     ]
 
 
@@ -958,6 +1057,7 @@ def test_package_main_describe_prints_registered_tools(capsys) -> None:
     assert f"Registered tools ({runtime.tool_count}):" in captured.out
     assert "apply-mod-update" in captured.out
     assert "describe-entity" in captured.out
+    assert "describe-server" in captured.out
     assert "find-entity" in captured.out
     assert "inspect-install" in captured.out
     assert "list-entity-links" in captured.out
@@ -995,6 +1095,7 @@ def test_package_main_stdio_does_not_print_to_stdout(capsys, monkeypatch) -> Non
         "find-entity",
         "describe-entity",
         "list-entity-links",
+        "describe-server",
     ]
 
 

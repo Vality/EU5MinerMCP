@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Protocol, cast
 
 from eu5miner import (
     AppliedModUpdate,
@@ -26,7 +27,38 @@ from eu5miner.inspection import (
 )
 from eu5miner.vfs import MergedFile, SourceFile
 
-from eu5miner_mcp.models import JSONValue
+from eu5miner_mcp.models import JSONValue, ToolDescriptor
+
+
+class ServerRuntimeLike(Protocol):
+    @property
+    def display_name(self) -> str: ...
+
+    @property
+    def package_name(self) -> str: ...
+
+    @property
+    def server_name(self) -> str: ...
+
+    @property
+    def version(self) -> str: ...
+
+    @property
+    def transports(self) -> tuple[str, ...]: ...
+
+    @property
+    def tool_names(self) -> tuple[str, ...]: ...
+
+    @property
+    def write_tool_names(self) -> tuple[str, ...]: ...
+
+    @property
+    def tool_count(self) -> int: ...
+
+    @property
+    def write_tool_count(self) -> int: ...
+
+    def build_stdio_instructions(self) -> str: ...
 
 
 def serialize_status_message(
@@ -38,6 +70,36 @@ def serialize_status_message(
     if tool_names:
         payload["tools"] = list(tool_names)
     return payload
+
+
+def serialize_server_description(
+    runtime: ServerRuntimeLike,
+    descriptors: Sequence[ToolDescriptor],
+    *,
+    status_message: str,
+) -> dict[str, JSONValue]:
+    return {
+        "status": status_message,
+        "display_name": runtime.display_name,
+        "package_name": runtime.package_name,
+        "server_name": runtime.server_name,
+        "version": runtime.version,
+        "transports": list(runtime.transports),
+        "tool_names": list(runtime.tool_names),
+        "tool_count": runtime.tool_count,
+        "write_tool_names": list(runtime.write_tool_names),
+        "write_tool_count": runtime.write_tool_count,
+        "stdio_instructions": runtime.build_stdio_instructions(),
+        "tools": [
+            {
+                "name": descriptor.name,
+                "description": descriptor.description,
+                "requires_confirmation": descriptor.name in runtime.write_tool_names,
+                "input_schema": cast(JSONValue, descriptor.input_schema),
+            }
+            for descriptor in descriptors
+        ],
+    }
 
 
 def serialize_install_summary(summary: InstallSummary) -> dict[str, JSONValue]:

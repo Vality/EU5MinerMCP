@@ -13,6 +13,7 @@ from eu5miner_mcp.tools import (
     get_file_tools,
     get_install_tools,
     get_mod_tools,
+    get_server_tools,
     get_system_tools,
 )
 
@@ -75,15 +76,27 @@ class ServerRuntime:
 
 
 def build_server() -> MCPServer:
-    return MCPServer(
-        tools=(
-            *get_install_tools(),
-            *get_file_tools(),
-            *get_mod_tools(),
-            *get_system_tools(),
-            *get_entity_tools(),
-        )
+    server: MCPServer | None = None
+    base_tools = (
+        *get_install_tools(),
+        *get_file_tools(),
+        *get_mod_tools(),
+        *get_system_tools(),
+        *get_entity_tools(),
     )
+
+    def _require_server() -> MCPServer:
+        if server is None:
+            raise RuntimeError("Server registry is not initialized")
+        return server
+
+    server_tools = get_server_tools(
+        runtime_provider=lambda: build_server_runtime(_require_server()),
+        descriptor_provider=lambda: _require_server().describe_tools(),
+        status_message_provider=lambda: build_startup_message(_require_server()),
+    )
+    server = MCPServer(tools=(*base_tools, *server_tools))
+    return server
 
 
 def build_server_runtime(server: MCPServer | None = None) -> ServerRuntime:

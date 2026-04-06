@@ -9,6 +9,7 @@ The current preview baseline now includes:
 - repo and package alignment with the core library workflow
 - a launchable typed MCP shell and CLI entrypoint
 - registered install, file, system, and mod workflow tools over stable core seams
+- a registry-backed `describe-server` self-description tool over the shared runtime metadata, stdio instructions, tool-name counts, and active tool descriptors
 - read-only install inspection, merged-file listing, supported-system listing, and per-system reporting
 - mod update planning and apply workflows surfaced through the MCP repo without duplicating parser or VFS logic
 
@@ -22,8 +23,9 @@ Goal: tighten the current tool surface before widening scope.
 
 Use this slice for:
 
-- clearer tool descriptors and argument expectations
-- more consistent response shaping across inspect, file, system, and mod tools
+- clearer tool descriptors and argument expectations beyond the landed `describe-server` baseline
+- more consistent response shaping across inspect, file, system, entity, and mod tools
+- smaller contract refinements around the now-shipped runtime self-description payload rather than new server foundation work
 - documentation that reflects the actual active tool registry
 
 ### 2. Server Boundary And Transport Readiness
@@ -32,7 +34,7 @@ Goal: keep the local shell easy to evolve into a fuller MCP server without promi
 
 Use this slice for:
 
-- separation between local startup behavior and future transport concerns
+- separation between local startup behavior, runtime self-description, and future transport concerns
 - clearer server lifecycle boundaries
 - tests that protect the current typed shell surface
 
