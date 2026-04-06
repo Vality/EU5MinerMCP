@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Documentation status language now marks the shipped diplomacy and religion helper tools as the completed step-2 grouped-helper breadth for the preview line.
+- The roadmap, README, and spec index now point the next major phase at full validation, build, test, and release-readiness work over the current registry-backed tool surface.
+
 ## 0.5.0 - 2026-04-05
 
 - First public preview release.

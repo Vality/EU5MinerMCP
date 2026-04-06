@@ -6,6 +6,8 @@ These specs are the execution layer under `ROADMAP.md`.
 
 The checked-in specs describe the landed server-shell foundation and the shipped narrow grouped-helper slices.
 
+The checked-in docs now also reflect the step-3 coherence sweep after that shipped step-2 breadth. The current focus is operational and release-oriented rather than another helper-surface expansion.
+
 ## Landed Baseline Spec
 
 - `read-only-server.md`: completed foundation for the launchable MCP shell, CLI entrypoint, and initial repo structure
@@ -18,14 +20,14 @@ The current implementation also hardens the registry-backed self-description sea
 
 The first explicit step-2 expansion specs are now also implemented in deliberately narrow form: `diplomacy-helper-tools.md` tracks the shipped read-only war-flow and diplomacy-graph helper tools over the stable `eu5miner.domains.diplomacy` grouped package, and `religion-helper-tools.md` tracks the shipped read-only religion link helper tool over the stable `eu5miner.domains.religion` grouped package.
 
-Step 1 in the roadmap still focuses on tool-contract consolidation, but the first checked step-2 slice is now explicit instead of remaining a generic future-expansion placeholder.
+The checked-in repo now reflects both the narrow tool-contract baseline and the shipped step-2 grouped-helper breadth through diplomacy and religion. The next major phase is full validation, build, test, and preview release readiness over that surface.
 
 That contract-consistency work also includes keeping the MCP entity-browsing surface synced to the core curated browseable subset rather than restating its system list independently; the current subset includes `economy`, `diplomacy`, `government`, `religion`, and `map`.
 
-## Next Follow-On Direction
+## Current Release-Readiness Focus
 
-- keep future step-2 slices as narrow as the shipped diplomacy and religion helper tools, instead of widening into generic helper-query infrastructure
-- future grouped helper specs should follow the same fixed representative-file and grouped-package boundary used by `diplomacy-helper-tools.md` and `religion-helper-tools.md`
+- keep the registry, docs, and validation gate aligned with the actual shipped tool surface while release-readiness work proceeds
+- keep future grouped helper specs as narrow as the shipped diplomacy and religion helper tools instead of widening into generic helper-query infrastructure
 
 ## Rules
 

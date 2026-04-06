@@ -17,24 +17,29 @@ The current preview baseline now includes:
 - read-only diplomacy war-flow, diplomacy-graph, and religion link reporting over representative install files without MCP-local parser logic
 - mod update planning and apply workflows surfaced through the MCP repo without duplicating parser or VFS logic
 
-That means the next work should tighten and extend the shipped server surface, not restart repo or shell foundation work.
+That checked-in state now covers the completed step-2 grouped-helper breadth through diplomacy and religion. The step-3 coherence sweep should keep the README, roadmap, changelog, and spec index aligned to that shipped surface. The next major phase after this documentation pass is full validation, build, test, and preview release readiness, not another helper-breadth expansion.
 
 ## Next Recommended Order
 
-### 1. Tool Contract Consolidation
+### 1. Validation, Build, Test, And Preview Release Readiness
 
-Goal: tighten the current tool surface before widening scope.
+Goal: validate and document the current narrow tool surface before widening scope again.
 
 Use this slice for:
 
+- full repo validation and build hygiene over the shipped server and tool surface
 - clearer tool descriptors and argument expectations beyond the landed `describe-server` baseline
 - more consistent response shaping across inspect, file, system, entity, and mod tools
 - entity-browsing contract coverage that stays aligned with the core curated browseable subset instead of drifting when that subset changes
 - registry-backed validation so runtime names, write-tool configuration, and exported descriptor lists cannot silently drift apart
 - smaller contract refinements around the now-shipped runtime self-description payload rather than new server foundation work
-- documentation that reflects the actual active tool registry
+- documentation and release notes that reflect the actual active tool registry
+
+Do not use this slice to add new helper families before the release-readiness work is in place.
 
 ### 2. Grouped Helper Tools Over Stable Grouped Packages
+
+Status: complete through diplomacy and religion for the current checked-in repo state; use this section as the reference boundary for any later helper follow-on rather than as the next active slice.
 
 Goal: make step 2 explicit as a thin MCP wrapper over the stable helper surfaces already curated in the core grouped packages.
 
@@ -72,6 +77,8 @@ Boundary preserved by the shipped religion follow-on:
 ### 3. Server Boundary And Transport Readiness
 
 Goal: keep the local shell easy to evolve into a fuller MCP server without promising more than is implemented.
+
+Do not treat this as the current next major phase while validation, build, test, and release-readiness work is still open.
 
 Use this slice for:
 

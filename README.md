@@ -23,6 +23,8 @@ The current surface is intentionally narrow: the first real MCP slices wrap stab
 
 The checked-in entity-browsing slice now depends on the current `eu5miner` mainline revision that includes the inspection entity seam.
 
+The checked-in MCP repo now also reflects the completed step-2 grouped-helper breadth for the current preview line: `report-diplomacy-war-flow`, `report-diplomacy-graph`, and `report-religion-links` are the shipped helper-tool families, and that scope remains the explicit preview boundary for helper-specific MCP work. The current step-3 follow-on is coherence and release readiness: keep the full validation, build, and test gate green, keep docs truthful to the live registry, and avoid widening helper scope again before the next preview cut.
+
 ## Current Shell Behavior
 
 The preview shell currently exposes a narrow tool registry:
