@@ -5,7 +5,12 @@ from pathlib import Path
 import eu5miner.inspection as inspection
 import pytest
 from eu5miner import GameInstall
-from eu5miner.domains.diplomacy import WarFlowReport, WarReferenceEdge
+from eu5miner.domains.diplomacy import (
+    DiplomacyGraphReport,
+    DiplomacyReferenceEdge,
+    WarFlowReport,
+    WarReferenceEdge,
+)
 from mcp.types import CallToolResult, TextContent, Tool
 
 import eu5miner_mcp.tools.diplomacy as diplomacy_tools
@@ -16,6 +21,7 @@ from eu5miner_mcp.__main__ import main as package_main
 from eu5miner_mcp.cli import main
 from eu5miner_mcp.models import RegisteredTool, ToolDescriptor, ToolResponse, closed_object_schema
 from eu5miner_mcp.serializers import (
+    serialize_diplomacy_graph_report,
     serialize_diplomacy_war_flow_report,
     serialize_entity_detail,
     serialize_entity_links,
@@ -56,6 +62,7 @@ def test_build_startup_message_lists_real_tool_names() -> None:
     assert "list-entity-systems" in message
     assert "list-entity-links" in message
     assert "plan-mod-update" in message
+    assert "report-diplomacy-graph" in message
     assert "report-diplomacy-war-flow" in message
     assert "report-system" in message
 
@@ -304,6 +311,96 @@ def test_serialize_diplomacy_war_flow_report_includes_edges_and_missing_refs() -
     }
 
 
+def test_serialize_diplomacy_graph_report_includes_edges_and_missing_refs() -> None:
+    payload = serialize_diplomacy_graph_report(
+        DiplomacyGraphReport(
+            peace_treaty_casus_belli_links=(
+                DiplomacyReferenceEdge(
+                    source_name="peace_example",
+                    referenced_names=("cb_example",),
+                ),
+            ),
+            peace_treaty_subject_type_links=(
+                DiplomacyReferenceEdge(
+                    source_name="peace_example",
+                    referenced_names=("tributary",),
+                ),
+            ),
+            country_interaction_casus_belli_links=(
+                DiplomacyReferenceEdge(
+                    source_name="country_link",
+                    referenced_names=("cb_example",),
+                ),
+            ),
+            country_interaction_subject_type_links=(
+                DiplomacyReferenceEdge(
+                    source_name="country_subject_link",
+                    referenced_names=("tributary",),
+                ),
+            ),
+            country_interaction_links=(
+                DiplomacyReferenceEdge(
+                    source_name="interaction_link",
+                    referenced_names=("country_link",),
+                ),
+            ),
+            character_interaction_subject_type_links=(
+                DiplomacyReferenceEdge(
+                    source_name="character_link",
+                    referenced_names=("tributary",),
+                ),
+            ),
+            missing_casus_belli_references=("missing_cb",),
+            missing_subject_type_references=("missing_subject",),
+            missing_country_interaction_references=("missing_interaction",),
+        ),
+        representative_files=(
+            ("country_interaction_sample", Path("common/country_interactions/request_loan.txt")),
+        ),
+    )
+
+    assert payload == {
+        "representative_files": [
+            {
+                "key": "country_interaction_sample",
+                "path": str(Path("common/country_interactions/request_loan.txt")),
+            }
+        ],
+        "summary": {
+            "peace_treaty_casus_belli_links": 1,
+            "peace_treaty_subject_type_links": 1,
+            "country_interaction_casus_belli_links": 1,
+            "country_interaction_subject_type_links": 1,
+            "country_interaction_links": 1,
+            "character_interaction_subject_type_links": 1,
+            "missing_casus_belli_references": 1,
+            "missing_subject_type_references": 1,
+            "missing_country_interaction_references": 1,
+        },
+        "peace_treaty_casus_belli_links": [
+            {"source_name": "peace_example", "referenced_names": ["cb_example"]}
+        ],
+        "peace_treaty_subject_type_links": [
+            {"source_name": "peace_example", "referenced_names": ["tributary"]}
+        ],
+        "country_interaction_casus_belli_links": [
+            {"source_name": "country_link", "referenced_names": ["cb_example"]}
+        ],
+        "country_interaction_subject_type_links": [
+            {"source_name": "country_subject_link", "referenced_names": ["tributary"]}
+        ],
+        "country_interaction_links": [
+            {"source_name": "interaction_link", "referenced_names": ["country_link"]}
+        ],
+        "character_interaction_subject_type_links": [
+            {"source_name": "character_link", "referenced_names": ["tributary"]}
+        ],
+        "missing_casus_belli_references": ["missing_cb"],
+        "missing_subject_type_references": ["missing_subject"],
+        "missing_country_interaction_references": ["missing_interaction"],
+    }
+
+
 def test_serialize_entity_links_returns_link_only_payload() -> None:
     detail = inspection.EntityDetail(
         summary=inspection.EntitySummary(
@@ -351,6 +448,7 @@ def test_tool_descriptors_are_typed_and_non_empty() -> None:
         *describe_mod_tools(),
         *describe_system_tools(),
         *describe_entity_tools(),
+        *describe_diplomacy_tools(),
         *describe_server_tools(),
     )
 
@@ -367,7 +465,9 @@ def test_tool_descriptors_publish_runtime_argument_contracts() -> None:
     list_files_schema = describe_file_tools()[0].input_schema
     plan_schema, apply_schema = describe_mod_tools()
     report_schema = describe_system_tools()[1].input_schema
-    diplomacy_schema = describe_diplomacy_tools()[0].input_schema
+    war_flow_schema, graph_schema = [
+        descriptor.input_schema for descriptor in describe_diplomacy_tools()
+    ]
     find_entity_schema = describe_entity_tools()[1].input_schema
     describe_entity_schema = describe_entity_tools()[2].input_schema
     list_entity_links_schema = describe_entity_tools()[3].input_schema
@@ -380,7 +480,7 @@ def test_tool_descriptors_publish_runtime_argument_contracts() -> None:
         "description": "Maximum number of merged files to return.",
     }
     assert report_schema["properties"]["language"]["default"] == "english"
-    assert diplomacy_schema == {
+    assert war_flow_schema == {
         "type": "object",
         "properties": {
             "install_root": {
@@ -390,6 +490,7 @@ def test_tool_descriptors_publish_runtime_argument_contracts() -> None:
         },
         "additionalProperties": False,
     }
+    assert graph_schema == war_flow_schema
     assert find_entity_schema["properties"]["system"]["enum"] == [
         "economy",
         "diplomacy",
@@ -449,10 +550,10 @@ def test_describe_entity_tools_expose_real_entity_browsing_slice() -> None:
     ]
 
 
-def test_describe_diplomacy_tools_expose_war_flow_report_slice() -> None:
+def test_describe_diplomacy_tools_expose_war_flow_and_graph_report_slices() -> None:
     descriptor_names = [descriptor.name for descriptor in describe_diplomacy_tools()]
 
-    assert descriptor_names == ["report-diplomacy-war-flow"]
+    assert descriptor_names == ["report-diplomacy-war-flow", "report-diplomacy-graph"]
 
 
 def test_describe_server_tools_expose_runtime_descriptor_slice() -> None:
@@ -701,6 +802,59 @@ def test_report_diplomacy_war_flow_uses_grouped_core_helpers(tmp_path: Path) -> 
     assert result.report.missing_subject_type_references == ("missing_subject",)
 
 
+def test_report_diplomacy_graph_uses_grouped_core_helpers(tmp_path: Path) -> None:
+    install_root = _make_synthetic_diplomacy_report_install(tmp_path / "fixture")
+
+    result = diplomacy_tools.report_diplomacy_graph(
+        diplomacy_tools.ReportDiplomacyGraphRequest(install_root=install_root)
+    )
+
+    assert [key for key, _ in result.representative_files] == [
+        "casus_belli_sample",
+        "casus_belli_secondary_sample",
+        "casus_belli_subject_sample",
+        "casus_belli_religious_sample",
+        "casus_belli_trade_sample",
+        "wargoal_sample",
+        "peace_treaty_sample",
+        "peace_treaty_secondary_sample",
+        "peace_treaty_special_sample",
+        "subject_type_sample",
+        "subject_type_secondary_sample",
+        "subject_type_colonial_sample",
+        "subject_type_hre_sample",
+        "subject_type_special_sample",
+        "country_interaction_sample",
+        "country_interaction_secondary_sample",
+        "character_interaction_sample",
+        "character_interaction_secondary_sample",
+    ]
+    assert tuple(edge.source_name for edge in result.report.peace_treaty_casus_belli_links) == (
+        "peace_example",
+        "peace_missing_refs",
+    )
+    assert tuple(edge.source_name for edge in result.report.peace_treaty_subject_type_links) == (
+        "peace_example",
+        "peace_missing_refs",
+    )
+    assert tuple(
+        edge.source_name for edge in result.report.country_interaction_casus_belli_links
+    ) == ("country_cb_link", "country_missing_refs")
+    assert tuple(
+        edge.source_name for edge in result.report.country_interaction_subject_type_links
+    ) == ("country_subject_link", "country_missing_refs")
+    assert tuple(edge.source_name for edge in result.report.country_interaction_links) == (
+        "country_interaction_ref",
+        "country_missing_interaction",
+    )
+    assert tuple(
+        edge.source_name for edge in result.report.character_interaction_subject_type_links
+    ) == ("character_subject_link", "character_missing_subject")
+    assert result.report.missing_casus_belli_references == ("missing_cb",)
+    assert result.report.missing_subject_type_references == ("missing_subject",)
+    assert result.report.missing_country_interaction_references == ("missing_interaction",)
+
+
 def test_server_dispatches_diplomacy_war_flow_tool(tmp_path: Path) -> None:
     install_root = _make_synthetic_diplomacy_report_install(tmp_path / "fixture")
 
@@ -728,6 +882,40 @@ def test_server_dispatches_diplomacy_war_flow_tool(tmp_path: Path) -> None:
     assert "Diplomacy war-flow report from representative install files:" in response.text
     assert "Casus belli -> wargoal links:" in response.text
     assert "Missing wargoal references:" in response.text
+
+
+def test_server_dispatches_diplomacy_graph_tool(tmp_path: Path) -> None:
+    install_root = _make_synthetic_diplomacy_report_install(tmp_path / "fixture")
+
+    response = build_server().call_tool(
+        "report-diplomacy-graph",
+        {"install_root": str(install_root)},
+    )
+
+    assert response.structured_content["summary"] == {
+        "peace_treaty_casus_belli_links": 2,
+        "peace_treaty_subject_type_links": 2,
+        "country_interaction_casus_belli_links": 2,
+        "country_interaction_subject_type_links": 2,
+        "country_interaction_links": 2,
+        "character_interaction_subject_type_links": 2,
+        "missing_casus_belli_references": 1,
+        "missing_subject_type_references": 1,
+        "missing_country_interaction_references": 1,
+    }
+    assert response.structured_content["missing_casus_belli_references"] == ["missing_cb"]
+    assert response.structured_content["missing_subject_type_references"] == [
+        "missing_subject"
+    ]
+    assert response.structured_content["missing_country_interaction_references"] == [
+        "missing_interaction"
+    ]
+    representative_files = response.structured_content["representative_files"]
+    assert isinstance(representative_files, list)
+    assert representative_files[-1]["key"] == "character_interaction_secondary_sample"
+    assert "Diplomacy graph report from representative install files:" in response.text
+    assert "Country interactions -> country interaction links:" in response.text
+    assert "Missing country interaction references:" in response.text
 
 
 def test_get_system_report_delegates_to_core_facade(
@@ -1171,9 +1359,10 @@ def test_server_dispatches_registered_tools(tmp_path: Path) -> None:
         "describe-entity",
         "list-entity-links",
         "report-diplomacy-war-flow",
+        "report-diplomacy-graph",
         "describe-server",
     ]
-    assert describe_server_response.structured_content["tool_count"] == 12
+    assert describe_server_response.structured_content["tool_count"] == 13
     assert describe_server_response.structured_content["write_tool_names"] == [
         "apply-mod-update"
     ]
@@ -1190,7 +1379,7 @@ def test_server_dispatches_registered_tools(tmp_path: Path) -> None:
         and tool["requires_confirmation"] is False
         for tool in describe_server_tools_payload
     )
-    assert "Registered tools (12):" in describe_server_response.text
+    assert "Registered tools (13):" in describe_server_response.text
     assert "Display name: EU5MinerMCP" in describe_server_response.text
     assert "Version: " in describe_server_response.text
     assert "Stdio instructions: EU5MinerMCP " in describe_server_response.text
@@ -1218,6 +1407,7 @@ def test_transport_adapter_lists_sdk_tools_from_internal_registry() -> None:
         "describe-entity",
         "list-entity-links",
         "report-diplomacy-war-flow",
+        "report-diplomacy-graph",
         "describe-server",
     ]
     assert tools[0].inputSchema == describe_install_tools()[0].input_schema
@@ -1255,7 +1445,7 @@ def test_transport_adapter_returns_protocol_safe_tool_errors() -> None:
         "Unknown tool 'missing-tool'. Valid tools: inspect-install, list-files, "
         "plan-mod-update, apply-mod-update, list-systems, report-system, "
         "list-entity-systems, find-entity, describe-entity, list-entity-links, "
-        "report-diplomacy-war-flow, "
+        "report-diplomacy-war-flow, report-diplomacy-graph, "
         "describe-server"
     )
 
@@ -1309,6 +1499,7 @@ def test_cli_main_describe_prints_registered_tools(capsys) -> None:
     assert "list-entity-links" in captured.out
     assert "list-entity-systems" in captured.out
     assert "plan-mod-update" in captured.out
+    assert "report-diplomacy-graph" in captured.out
     assert "report-diplomacy-war-flow" in captured.out
     assert "list-systems" in captured.out
     assert (
@@ -1343,6 +1534,7 @@ def test_cli_main_stdio_does_not_print_to_stdout(capsys, monkeypatch) -> None:
         "describe-entity",
         "list-entity-links",
         "report-diplomacy-war-flow",
+        "report-diplomacy-graph",
         "describe-server",
     ]
 
@@ -1364,6 +1556,7 @@ def test_package_main_describe_prints_registered_tools(capsys) -> None:
     assert "list-entity-links" in captured.out
     assert "list-entity-systems" in captured.out
     assert "plan-mod-update" in captured.out
+    assert "report-diplomacy-graph" in captured.out
     assert "report-diplomacy-war-flow" in captured.out
     assert "list-systems" in captured.out
     assert (
@@ -1398,6 +1591,7 @@ def test_package_main_stdio_does_not_print_to_stdout(capsys, monkeypatch) -> Non
         "describe-entity",
         "list-entity-links",
         "report-diplomacy-war-flow",
+        "report-diplomacy-graph",
         "describe-server",
     ]
 
@@ -1506,6 +1700,48 @@ def _make_synthetic_diplomacy_report_install(root: Path) -> Path:
     _write_file(representative_files["subject_type_colonial_sample"], "")
     _write_file(representative_files["subject_type_hre_sample"], "")
     _write_file(representative_files["subject_type_special_sample"], "")
+    _write_file(
+        representative_files["country_interaction_sample"],
+        (
+            "country_cb_link = {\n"
+            "    effect = { add_casus_belli = { type = casus_belli:cb_example } }\n"
+            "}\n"
+            "country_subject_link = {\n"
+            "    effect = { make_subject_of = { type = subject_type:tributary } }\n"
+            "}\n"
+            "country_interaction_ref = {\n"
+            '    ai_will_do = { add = "scope:actor.country_interaction_acceptance('
+            'country_interaction:country_cb_link|scope:recipient)" }\n'
+            "}\n"
+        ),
+    )
+    _write_file(
+        representative_files["country_interaction_secondary_sample"],
+        (
+            "country_missing_refs = {\n"
+            "    effect = {\n"
+            "        add_casus_belli = { type = casus_belli:missing_cb }\n"
+            "        make_subject_of = { type = subject_type:missing_subject }\n"
+            "    }\n"
+            "}\n"
+            "country_missing_interaction = {\n"
+            '    ai_will_do = { add = "scope:actor.country_interaction_acceptance('
+            'country_interaction:missing_interaction|scope:recipient)" }\n'
+            "}\n"
+        ),
+    )
+    _write_file(
+        representative_files["character_interaction_sample"],
+        "character_subject_link = {\n"
+        "    effect = { make_subject_of = { type = subject_type:tributary } }\n"
+        "}\n",
+    )
+    _write_file(
+        representative_files["character_interaction_secondary_sample"],
+        "character_missing_subject = {\n"
+        "    effect = { make_subject_of = { type = subject_type:missing_subject } }\n"
+        "}\n",
+    )
 
     return install_root
 

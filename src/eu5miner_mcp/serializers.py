@@ -16,7 +16,12 @@ from eu5miner import (
     ModUpdateWrite,
     PlannedModUpdate,
 )
-from eu5miner.domains.diplomacy import WarFlowReport, WarReferenceEdge
+from eu5miner.domains.diplomacy import (
+    DiplomacyGraphReport,
+    DiplomacyReferenceEdge,
+    WarFlowReport,
+    WarReferenceEdge,
+)
 from eu5miner.inspection import (
     EntityDetail,
     EntityReference,
@@ -177,6 +182,66 @@ def serialize_diplomacy_war_flow_report(
         "missing_wargoal_references": list(report.missing_wargoal_references),
         "missing_casus_belli_references": list(report.missing_casus_belli_references),
         "missing_subject_type_references": list(report.missing_subject_type_references),
+    }
+
+
+def serialize_diplomacy_graph_report(
+    report: DiplomacyGraphReport,
+    *,
+    representative_files: Sequence[tuple[str, Path]],
+) -> dict[str, JSONValue]:
+    return {
+        "representative_files": [
+            {"key": key, "path": str(path)} for key, path in representative_files
+        ],
+        "summary": {
+            "peace_treaty_casus_belli_links": len(report.peace_treaty_casus_belli_links),
+            "peace_treaty_subject_type_links": len(report.peace_treaty_subject_type_links),
+            "country_interaction_casus_belli_links": len(
+                report.country_interaction_casus_belli_links
+            ),
+            "country_interaction_subject_type_links": len(
+                report.country_interaction_subject_type_links
+            ),
+            "country_interaction_links": len(report.country_interaction_links),
+            "character_interaction_subject_type_links": len(
+                report.character_interaction_subject_type_links
+            ),
+            "missing_casus_belli_references": len(report.missing_casus_belli_references),
+            "missing_subject_type_references": len(report.missing_subject_type_references),
+            "missing_country_interaction_references": len(
+                report.missing_country_interaction_references
+            ),
+        },
+        "peace_treaty_casus_belli_links": [
+            _serialize_diplomacy_reference_edge(edge)
+            for edge in report.peace_treaty_casus_belli_links
+        ],
+        "peace_treaty_subject_type_links": [
+            _serialize_diplomacy_reference_edge(edge)
+            for edge in report.peace_treaty_subject_type_links
+        ],
+        "country_interaction_casus_belli_links": [
+            _serialize_diplomacy_reference_edge(edge)
+            for edge in report.country_interaction_casus_belli_links
+        ],
+        "country_interaction_subject_type_links": [
+            _serialize_diplomacy_reference_edge(edge)
+            for edge in report.country_interaction_subject_type_links
+        ],
+        "country_interaction_links": [
+            _serialize_diplomacy_reference_edge(edge)
+            for edge in report.country_interaction_links
+        ],
+        "character_interaction_subject_type_links": [
+            _serialize_diplomacy_reference_edge(edge)
+            for edge in report.character_interaction_subject_type_links
+        ],
+        "missing_casus_belli_references": list(report.missing_casus_belli_references),
+        "missing_subject_type_references": list(report.missing_subject_type_references),
+        "missing_country_interaction_references": list(
+            report.missing_country_interaction_references
+        ),
     }
 
 
@@ -350,6 +415,15 @@ def _serialize_entity_reference(reference: EntityReference) -> dict[str, JSONVal
 
 
 def _serialize_war_reference_edge(edge: WarReferenceEdge) -> dict[str, JSONValue]:
+    return {
+        "source_name": edge.source_name,
+        "referenced_names": list(edge.referenced_names),
+    }
+
+
+def _serialize_diplomacy_reference_edge(
+    edge: DiplomacyReferenceEdge,
+) -> dict[str, JSONValue]:
     return {
         "source_name": edge.source_name,
         "referenced_names": list(edge.referenced_names),
