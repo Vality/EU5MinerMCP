@@ -11,9 +11,10 @@ The current preview baseline now includes:
 - registered install, file, system, and mod workflow tools over stable core seams
 - a first targeted diplomacy helper tool over the grouped `eu5miner.domains.diplomacy` seam and representative install files
 - a second targeted diplomacy helper tool over the same grouped diplomacy seam and representative install files
+- a first targeted religion helper tool over the grouped `eu5miner.domains.religion` seam and representative install files
 - a registry-backed `describe-server` self-description tool over the shared runtime metadata, stdio instructions, tool-name counts, and active tool descriptors
 - read-only install inspection, merged-file listing, supported-system listing, and per-system reporting
-- read-only diplomacy war-flow and diplomacy-graph reporting over representative install files without MCP-local parser logic
+- read-only diplomacy war-flow, diplomacy-graph, and religion link reporting over representative install files without MCP-local parser logic
 - mod update planning and apply workflows surfaced through the MCP repo without duplicating parser or VFS logic
 
 That means the next work should tighten and extend the shipped server surface, not restart repo or shell foundation work.
@@ -33,22 +34,22 @@ Use this slice for:
 - smaller contract refinements around the now-shipped runtime self-description payload rather than new server foundation work
 - documentation that reflects the actual active tool registry
 
-### 2. Diplomacy Helper Tools Over Stable Grouped Packages
+### 2. Grouped Helper Tools Over Stable Grouped Packages
 
-Goal: make step 2 explicit as a thin MCP wrapper over the stable diplomacy helper surface already curated in the core grouped package.
+Goal: make step 2 explicit as a thin MCP wrapper over the stable helper surfaces already curated in the core grouped packages.
 
-Reference pattern: `documents/specs/diplomacy-helper-tools.md`
+Reference patterns: `documents/specs/diplomacy-helper-tools.md`, `documents/specs/religion-helper-tools.md`
 
 Use this slice for:
 
-- read-only diplomacy helper tools over `eu5miner.domains.diplomacy`
+- read-only grouped helper tools over `eu5miner.domains.diplomacy` and `eu5miner.domains.religion`
 - thin install-backed loading through stable core seams such as `GameInstall` and grouped-package parsers and helper builders
 - explicit machine-readable serializers for one concrete helper family before adding helper tools for other systems
 - contract tests that keep tool names, schemas, and response shapes explicit
 
 The first checked step-2 implementation slice in this category is `report-diplomacy-war-flow`, and it should remain the reference pattern for future helper-tool follow-ons.
 
-The shipped narrow follow-on in this category is one additional read-only tool, `report-diplomacy-graph`, with the same thin install-loading and registry pattern as `report-diplomacy-war-flow`.
+The shipped narrow follow-ons in this category are `report-diplomacy-graph` and `report-religion-links`, each with the same thin install-loading and registry pattern as `report-diplomacy-war-flow`.
 
 Boundary preserved by that shipped follow-on:
 
@@ -59,6 +60,14 @@ Boundary preserved by that shipped follow-on:
 - keep `report-diplomacy-war-flow` unchanged rather than merging both reports into one tool
 
 Do not use this slice to invent ad hoc graph traversal, parser logic, or a broad helper-query framework in the MCP layer.
+
+Boundary preserved by the shipped religion follow-on:
+
+- add exactly one new read-only tool: `report-religion-links`
+- accept only the existing optional `install_root` request argument
+- load the fixed representative religion file set already curated by `GameInstall.representative_files()` across religion, religious aspect, religious faction, religious focus, religious school, religious figure, and holy site files
+- serialize only the religion-link edge categories and missing-reference categories already exposed by `eu5miner.domains.religion.ReligionReport`
+- keep the diplomacy tools unchanged rather than merging grouped helper families into one generic report tool
 
 ### 3. Server Boundary And Transport Readiness
 

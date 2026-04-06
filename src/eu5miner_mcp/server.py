@@ -14,6 +14,7 @@ from eu5miner_mcp.tools import (
     get_file_tools,
     get_install_tools,
     get_mod_tools,
+    get_religion_tools,
     get_server_tools,
     get_system_tools,
 )
@@ -85,6 +86,7 @@ def build_server() -> MCPServer:
         *get_system_tools(),
         *get_entity_tools(),
         *get_diplomacy_tools(),
+        *get_religion_tools(),
     )
 
     def _require_server() -> MCPServer:

@@ -22,6 +22,7 @@ from eu5miner.domains.diplomacy import (
     WarFlowReport,
     WarReferenceEdge,
 )
+from eu5miner.domains.religion import ReligionReferenceEdge, ReligionReport
 from eu5miner.inspection import (
     EntityDetail,
     EntityReference,
@@ -245,6 +246,63 @@ def serialize_diplomacy_graph_report(
     }
 
 
+def serialize_religion_report(
+    report: ReligionReport,
+    *,
+    representative_files: Sequence[tuple[str, Path]],
+) -> dict[str, JSONValue]:
+    return {
+        "representative_files": [
+            {"key": key, "path": str(path)} for key, path in representative_files
+        ],
+        "summary": {
+            "religion_aspect_links": len(report.religion_aspect_links),
+            "religion_faction_links": len(report.religion_faction_links),
+            "religion_focus_links": len(report.religion_focus_links),
+            "religion_school_links": len(report.religion_school_links),
+            "religion_holy_site_links": len(report.religion_holy_site_links),
+            "religion_figure_links": len(report.religion_figure_links),
+            "missing_religious_faction_references": len(
+                report.missing_religious_faction_references
+            ),
+            "missing_religious_focus_references": len(
+                report.missing_religious_focus_references
+            ),
+            "missing_religious_school_references": len(
+                report.missing_religious_school_references
+            ),
+        },
+        "religion_aspect_links": [
+            _serialize_religion_reference_edge(edge) for edge in report.religion_aspect_links
+        ],
+        "religion_faction_links": [
+            _serialize_religion_reference_edge(edge) for edge in report.religion_faction_links
+        ],
+        "religion_focus_links": [
+            _serialize_religion_reference_edge(edge) for edge in report.religion_focus_links
+        ],
+        "religion_school_links": [
+            _serialize_religion_reference_edge(edge) for edge in report.religion_school_links
+        ],
+        "religion_holy_site_links": [
+            _serialize_religion_reference_edge(edge)
+            for edge in report.religion_holy_site_links
+        ],
+        "religion_figure_links": [
+            _serialize_religion_reference_edge(edge) for edge in report.religion_figure_links
+        ],
+        "missing_religious_faction_references": list(
+            report.missing_religious_faction_references
+        ),
+        "missing_religious_focus_references": list(
+            report.missing_religious_focus_references
+        ),
+        "missing_religious_school_references": list(
+            report.missing_religious_school_references
+        ),
+    }
+
+
 def serialize_entity_system_list(
     systems: Sequence[EntitySystemInfo],
 ) -> dict[str, JSONValue]:
@@ -423,6 +481,15 @@ def _serialize_war_reference_edge(edge: WarReferenceEdge) -> dict[str, JSONValue
 
 def _serialize_diplomacy_reference_edge(
     edge: DiplomacyReferenceEdge,
+) -> dict[str, JSONValue]:
+    return {
+        "source_name": edge.source_name,
+        "referenced_names": list(edge.referenced_names),
+    }
+
+
+def _serialize_religion_reference_edge(
+    edge: ReligionReferenceEdge,
 ) -> dict[str, JSONValue]:
     return {
         "source_name": edge.source_name,

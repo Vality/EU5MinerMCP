@@ -11,11 +11,13 @@ from eu5miner.domains.diplomacy import (
     WarFlowReport,
     WarReferenceEdge,
 )
+from eu5miner.domains.religion import ReligionReferenceEdge, ReligionReport
 from mcp.types import CallToolResult, TextContent, Tool
 
 import eu5miner_mcp.tools.diplomacy as diplomacy_tools
 import eu5miner_mcp.tools.entities as entity_tools
 import eu5miner_mcp.tools.mods as mod_tools
+import eu5miner_mcp.tools.religion as religion_tools
 import eu5miner_mcp.tools.systems as systems_tools
 from eu5miner_mcp.__main__ import main as package_main
 from eu5miner_mcp.cli import main
@@ -25,6 +27,7 @@ from eu5miner_mcp.serializers import (
     serialize_diplomacy_war_flow_report,
     serialize_entity_detail,
     serialize_entity_links,
+    serialize_religion_report,
     serialize_server_description,
     serialize_status_message,
     serialize_system_list,
@@ -36,6 +39,7 @@ from eu5miner_mcp.tools import (
     describe_file_tools,
     describe_install_tools,
     describe_mod_tools,
+    describe_religion_tools,
     describe_server_tools,
     describe_system_tools,
 )
@@ -64,6 +68,7 @@ def test_build_startup_message_lists_real_tool_names() -> None:
     assert "plan-mod-update" in message
     assert "report-diplomacy-graph" in message
     assert "report-diplomacy-war-flow" in message
+    assert "report-religion-links" in message
     assert "report-system" in message
 
 
@@ -401,6 +406,102 @@ def test_serialize_diplomacy_graph_report_includes_edges_and_missing_refs() -> N
     }
 
 
+def test_serialize_religion_report_includes_edges_and_missing_refs() -> None:
+    payload = serialize_religion_report(
+        ReligionReport(
+            religion_aspect_links=(
+                ReligionReferenceEdge(
+                    source_name="faith",
+                    referenced_names=("aspect_a",),
+                ),
+            ),
+            religion_faction_links=(
+                ReligionReferenceEdge(
+                    source_name="faith",
+                    referenced_names=("faction_a", "missing_faction"),
+                ),
+            ),
+            religion_focus_links=(
+                ReligionReferenceEdge(
+                    source_name="faith",
+                    referenced_names=("focus_a", "missing_focus"),
+                ),
+            ),
+            religion_school_links=(
+                ReligionReferenceEdge(
+                    source_name="faith",
+                    referenced_names=("school_a",),
+                ),
+            ),
+            religion_holy_site_links=(
+                ReligionReferenceEdge(
+                    source_name="faith",
+                    referenced_names=("site_a",),
+                ),
+            ),
+            religion_figure_links=(
+                ReligionReferenceEdge(
+                    source_name="faith",
+                    referenced_names=("figure_a",),
+                ),
+            ),
+            missing_religious_faction_references=("missing_faction",),
+            missing_religious_focus_references=("missing_focus",),
+            missing_religious_school_references=("missing_school",),
+        ),
+        representative_files=(
+            ("religion_sample", Path("common/religions/christian.txt")),
+        ),
+    )
+
+    assert payload == {
+        "representative_files": [
+            {
+                "key": "religion_sample",
+                "path": str(Path("common/religions/christian.txt")),
+            }
+        ],
+        "summary": {
+            "religion_aspect_links": 1,
+            "religion_faction_links": 1,
+            "religion_focus_links": 1,
+            "religion_school_links": 1,
+            "religion_holy_site_links": 1,
+            "religion_figure_links": 1,
+            "missing_religious_faction_references": 1,
+            "missing_religious_focus_references": 1,
+            "missing_religious_school_references": 1,
+        },
+        "religion_aspect_links": [
+            {"source_name": "faith", "referenced_names": ["aspect_a"]}
+        ],
+        "religion_faction_links": [
+            {
+                "source_name": "faith",
+                "referenced_names": ["faction_a", "missing_faction"],
+            }
+        ],
+        "religion_focus_links": [
+            {
+                "source_name": "faith",
+                "referenced_names": ["focus_a", "missing_focus"],
+            }
+        ],
+        "religion_school_links": [
+            {"source_name": "faith", "referenced_names": ["school_a"]}
+        ],
+        "religion_holy_site_links": [
+            {"source_name": "faith", "referenced_names": ["site_a"]}
+        ],
+        "religion_figure_links": [
+            {"source_name": "faith", "referenced_names": ["figure_a"]}
+        ],
+        "missing_religious_faction_references": ["missing_faction"],
+        "missing_religious_focus_references": ["missing_focus"],
+        "missing_religious_school_references": ["missing_school"],
+    }
+
+
 def test_serialize_entity_links_returns_link_only_payload() -> None:
     detail = inspection.EntityDetail(
         summary=inspection.EntitySummary(
@@ -449,6 +550,7 @@ def test_tool_descriptors_are_typed_and_non_empty() -> None:
         *describe_system_tools(),
         *describe_entity_tools(),
         *describe_diplomacy_tools(),
+        *describe_religion_tools(),
         *describe_server_tools(),
     )
 
@@ -468,6 +570,7 @@ def test_tool_descriptors_publish_runtime_argument_contracts() -> None:
     war_flow_schema, graph_schema = [
         descriptor.input_schema for descriptor in describe_diplomacy_tools()
     ]
+    religion_schema = describe_religion_tools()[0].input_schema
     find_entity_schema = describe_entity_tools()[1].input_schema
     describe_entity_schema = describe_entity_tools()[2].input_schema
     list_entity_links_schema = describe_entity_tools()[3].input_schema
@@ -491,6 +594,7 @@ def test_tool_descriptors_publish_runtime_argument_contracts() -> None:
         "additionalProperties": False,
     }
     assert graph_schema == war_flow_schema
+    assert religion_schema == war_flow_schema
     assert find_entity_schema["properties"]["system"]["enum"] == [
         "economy",
         "diplomacy",
@@ -554,6 +658,12 @@ def test_describe_diplomacy_tools_expose_war_flow_and_graph_report_slices() -> N
     descriptor_names = [descriptor.name for descriptor in describe_diplomacy_tools()]
 
     assert descriptor_names == ["report-diplomacy-war-flow", "report-diplomacy-graph"]
+
+
+def test_describe_religion_tools_expose_religion_link_report_slice() -> None:
+    descriptor_names = [descriptor.name for descriptor in describe_religion_tools()]
+
+    assert descriptor_names == ["report-religion-links"]
 
 
 def test_describe_server_tools_expose_runtime_descriptor_slice() -> None:
@@ -855,6 +965,53 @@ def test_report_diplomacy_graph_uses_grouped_core_helpers(tmp_path: Path) -> Non
     assert result.report.missing_country_interaction_references == ("missing_interaction",)
 
 
+def test_report_religion_links_uses_grouped_core_helpers(tmp_path: Path) -> None:
+    install_root = _make_synthetic_religion_report_install(tmp_path / "fixture")
+
+    result = religion_tools.report_religion_links(
+        religion_tools.ReportReligionLinksRequest(install_root=install_root)
+    )
+
+    assert [key for key, _ in result.representative_files] == [
+        "religion_sample",
+        "religion_secondary_sample",
+        "religion_muslim_sample",
+        "religion_tonal_sample",
+        "religion_dharmic_sample",
+        "religious_aspect_sample",
+        "religious_aspect_secondary_sample",
+        "religious_faction_sample",
+        "religious_focus_sample",
+        "religious_school_sample",
+        "religious_school_secondary_sample",
+        "religious_figure_sample",
+        "religious_figure_secondary_sample",
+        "holy_site_sample",
+        "holy_site_secondary_sample",
+    ]
+    assert tuple(edge.source_name for edge in result.report.religion_aspect_links) == (
+        "faith",
+    )
+    assert tuple(edge.source_name for edge in result.report.religion_faction_links) == (
+        "faith",
+    )
+    assert tuple(edge.source_name for edge in result.report.religion_focus_links) == (
+        "faith",
+    )
+    assert tuple(edge.source_name for edge in result.report.religion_school_links) == (
+        "faith",
+    )
+    assert tuple(edge.source_name for edge in result.report.religion_holy_site_links) == (
+        "faith",
+    )
+    assert tuple(edge.source_name for edge in result.report.religion_figure_links) == (
+        "faith",
+    )
+    assert result.report.missing_religious_faction_references == ("missing_faction",)
+    assert result.report.missing_religious_focus_references == ("missing_focus",)
+    assert result.report.missing_religious_school_references == ("missing_school",)
+
+
 def test_server_dispatches_diplomacy_war_flow_tool(tmp_path: Path) -> None:
     install_root = _make_synthetic_diplomacy_report_install(tmp_path / "fixture")
 
@@ -916,6 +1073,42 @@ def test_server_dispatches_diplomacy_graph_tool(tmp_path: Path) -> None:
     assert "Diplomacy graph report from representative install files:" in response.text
     assert "Country interactions -> country interaction links:" in response.text
     assert "Missing country interaction references:" in response.text
+
+
+def test_server_dispatches_religion_links_tool(tmp_path: Path) -> None:
+    install_root = _make_synthetic_religion_report_install(tmp_path / "fixture")
+
+    response = build_server().call_tool(
+        "report-religion-links",
+        {"install_root": str(install_root)},
+    )
+
+    assert response.structured_content["summary"] == {
+        "religion_aspect_links": 1,
+        "religion_faction_links": 1,
+        "religion_focus_links": 1,
+        "religion_school_links": 1,
+        "religion_holy_site_links": 1,
+        "religion_figure_links": 1,
+        "missing_religious_faction_references": 1,
+        "missing_religious_focus_references": 1,
+        "missing_religious_school_references": 1,
+    }
+    assert response.structured_content["missing_religious_faction_references"] == [
+        "missing_faction"
+    ]
+    assert response.structured_content["missing_religious_focus_references"] == [
+        "missing_focus"
+    ]
+    assert response.structured_content["missing_religious_school_references"] == [
+        "missing_school"
+    ]
+    representative_files = response.structured_content["representative_files"]
+    assert isinstance(representative_files, list)
+    assert representative_files[-1]["key"] == "holy_site_secondary_sample"
+    assert "Religion link report from representative install files:" in response.text
+    assert "Religion -> holy site links:" in response.text
+    assert "Missing religious school references:" in response.text
 
 
 def test_get_system_report_delegates_to_core_facade(
@@ -1360,9 +1553,10 @@ def test_server_dispatches_registered_tools(tmp_path: Path) -> None:
         "list-entity-links",
         "report-diplomacy-war-flow",
         "report-diplomacy-graph",
+        "report-religion-links",
         "describe-server",
     ]
-    assert describe_server_response.structured_content["tool_count"] == 13
+    assert describe_server_response.structured_content["tool_count"] == 14
     assert describe_server_response.structured_content["write_tool_names"] == [
         "apply-mod-update"
     ]
@@ -1379,7 +1573,7 @@ def test_server_dispatches_registered_tools(tmp_path: Path) -> None:
         and tool["requires_confirmation"] is False
         for tool in describe_server_tools_payload
     )
-    assert "Registered tools (13):" in describe_server_response.text
+    assert "Registered tools (14):" in describe_server_response.text
     assert "Display name: EU5MinerMCP" in describe_server_response.text
     assert "Version: " in describe_server_response.text
     assert "Stdio instructions: EU5MinerMCP " in describe_server_response.text
@@ -1408,6 +1602,7 @@ def test_transport_adapter_lists_sdk_tools_from_internal_registry() -> None:
         "list-entity-links",
         "report-diplomacy-war-flow",
         "report-diplomacy-graph",
+        "report-religion-links",
         "describe-server",
     ]
     assert tools[0].inputSchema == describe_install_tools()[0].input_schema
@@ -1445,7 +1640,7 @@ def test_transport_adapter_returns_protocol_safe_tool_errors() -> None:
         "Unknown tool 'missing-tool'. Valid tools: inspect-install, list-files, "
         "plan-mod-update, apply-mod-update, list-systems, report-system, "
         "list-entity-systems, find-entity, describe-entity, list-entity-links, "
-        "report-diplomacy-war-flow, report-diplomacy-graph, "
+        "report-diplomacy-war-flow, report-diplomacy-graph, report-religion-links, "
         "describe-server"
     )
 
@@ -1501,6 +1696,7 @@ def test_cli_main_describe_prints_registered_tools(capsys) -> None:
     assert "plan-mod-update" in captured.out
     assert "report-diplomacy-graph" in captured.out
     assert "report-diplomacy-war-flow" in captured.out
+    assert "report-religion-links" in captured.out
     assert "list-systems" in captured.out
     assert (
         "Write tools requiring confirmation: apply-mod-update (pass confirm=true "
@@ -1535,6 +1731,7 @@ def test_cli_main_stdio_does_not_print_to_stdout(capsys, monkeypatch) -> None:
         "list-entity-links",
         "report-diplomacy-war-flow",
         "report-diplomacy-graph",
+        "report-religion-links",
         "describe-server",
     ]
 
@@ -1558,6 +1755,7 @@ def test_package_main_describe_prints_registered_tools(capsys) -> None:
     assert "plan-mod-update" in captured.out
     assert "report-diplomacy-graph" in captured.out
     assert "report-diplomacy-war-flow" in captured.out
+    assert "report-religion-links" in captured.out
     assert "list-systems" in captured.out
     assert (
         "Write tools requiring confirmation: apply-mod-update (pass confirm=true "
@@ -1592,6 +1790,7 @@ def test_package_main_stdio_does_not_print_to_stdout(capsys, monkeypatch) -> Non
         "list-entity-links",
         "report-diplomacy-war-flow",
         "report-diplomacy-graph",
+        "report-religion-links",
         "describe-server",
     ]
 
@@ -1742,6 +1941,62 @@ def _make_synthetic_diplomacy_report_install(root: Path) -> Path:
         "    effect = { make_subject_of = { type = subject_type:missing_subject } }\n"
         "}\n",
     )
+
+    return install_root
+
+
+def _make_synthetic_religion_report_install(root: Path) -> Path:
+    install_root = _make_install_root(root / "install")
+    representative_files = GameInstall.discover(install_root).representative_files()
+
+    _write_file(
+        representative_files["religion_sample"],
+        (
+            "faith = {\n"
+            "    group = christian\n"
+            "    factions = { faction_a missing_faction }\n"
+            "    religious_focuses = { focus_a missing_focus }\n"
+            "    religious_school = school_a\n"
+            "    religious_school = missing_school\n"
+            "}\n"
+        ),
+    )
+    _write_file(representative_files["religion_secondary_sample"], "")
+    _write_file(representative_files["religion_muslim_sample"], "")
+    _write_file(representative_files["religion_tonal_sample"], "")
+    _write_file(representative_files["religion_dharmic_sample"], "")
+    _write_file(
+        representative_files["religious_aspect_sample"],
+        "aspect_a = { religion = faith }\n",
+    )
+    _write_file(representative_files["religious_aspect_secondary_sample"], "")
+    _write_file(
+        representative_files["religious_faction_sample"],
+        "faction_a = { icon = faction_a }\n",
+    )
+    _write_file(
+        representative_files["religious_focus_sample"],
+        "focus_a = { icon = focus_a }\n",
+    )
+    _write_file(representative_files["religious_school_sample"], "school_a = {}\n")
+    _write_file(representative_files["religious_school_secondary_sample"], "")
+    _write_file(
+        representative_files["religious_figure_sample"],
+        "figure_a = { enabled_for_religion = { religion = religion:faith } }\n",
+    )
+    _write_file(representative_files["religious_figure_secondary_sample"], "")
+    _write_file(
+        representative_files["holy_site_sample"],
+        (
+            "site_a = {\n"
+            "    location = rome\n"
+            "    religions = {\n"
+            "        faith\n"
+            "    }\n"
+            "}\n"
+        ),
+    )
+    _write_file(representative_files["holy_site_secondary_sample"], "")
 
     return install_root
 
