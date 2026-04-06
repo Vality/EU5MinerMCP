@@ -25,6 +25,7 @@ Use this slice for:
 
 - clearer tool descriptors and argument expectations beyond the landed `describe-server` baseline
 - more consistent response shaping across inspect, file, system, entity, and mod tools
+- entity-browsing contract coverage that stays aligned with the core curated browseable subset instead of drifting when that subset changes
 - registry-backed validation so runtime names, write-tool configuration, and exported descriptor lists cannot silently drift apart
 - smaller contract refinements around the now-shipped runtime self-description payload rather than new server foundation work
 - documentation that reflects the actual active tool registry

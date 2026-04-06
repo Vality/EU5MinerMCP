@@ -18,6 +18,8 @@ No new follow-on MCP spec is checked in yet.
 
 The next spec for this repo should scope one concrete server or tool-surface refinement slice over the current implementation rather than reopening foundation work; the registry-backed self-description slice is already present and now includes explicit runtime names, counts, and stdio instructions, so the next focus should stay on contract consistency or another thin wrapper over an existing core seam.
 
+That contract-consistency work also includes keeping the MCP entity-browsing surface synced to the core curated browseable subset rather than restating its system list independently; the current subset includes `economy`, `diplomacy`, `government`, `religion`, and `map`.
+
 ## Rules
 
 - keep parsing and domain logic in `eu5miner`

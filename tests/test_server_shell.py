@@ -305,6 +305,8 @@ def test_tool_descriptors_publish_runtime_argument_contracts() -> None:
     plan_schema, apply_schema = describe_mod_tools()
     report_schema = describe_system_tools()[1].input_schema
     find_entity_schema = describe_entity_tools()[1].input_schema
+    describe_entity_schema = describe_entity_tools()[2].input_schema
+    list_entity_links_schema = describe_entity_tools()[3].input_schema
     describe_server_schema = describe_server_tools()[0].input_schema
 
     assert list_files_schema["properties"]["limit"] == {
@@ -314,8 +316,29 @@ def test_tool_descriptors_publish_runtime_argument_contracts() -> None:
         "description": "Maximum number of merged files to return.",
     }
     assert report_schema["properties"]["language"]["default"] == "english"
+    assert find_entity_schema["properties"]["system"]["enum"] == [
+        "economy",
+        "diplomacy",
+        "government",
+        "religion",
+        "map",
+    ]
     assert find_entity_schema["properties"]["limit"]["minimum"] == 1
     assert find_entity_schema["properties"]["limit"]["default"] == 20
+    assert describe_entity_schema["properties"]["system"]["enum"] == [
+        "economy",
+        "diplomacy",
+        "government",
+        "religion",
+        "map",
+    ]
+    assert list_entity_links_schema["properties"]["system"]["enum"] == [
+        "economy",
+        "diplomacy",
+        "government",
+        "religion",
+        "map",
+    ]
     assert describe_server_schema == {
         "type": "object",
         "properties": {},
@@ -419,6 +442,7 @@ def test_list_entity_systems_returns_core_supported_entity_systems() -> None:
 
     assert [(system.name, system.primary_entity_kind) for system in systems] == [
         ("economy", "good"),
+        ("diplomacy", "casus_belli"),
         ("government", "government_type"),
         ("religion", "religion"),
         ("map", "location"),
@@ -504,6 +528,56 @@ def test_list_entity_links_reuses_describe_entity_references(tmp_path: Path) -> 
             target_name="grain",
         ),
     )
+
+
+def test_diplomacy_entity_tools_follow_core_browsable_subset(tmp_path: Path) -> None:
+    install_root = _make_synthetic_entity_install(tmp_path / "fixture")
+
+    systems = entity_tools.list_entity_systems()
+    find_result = find_entities(
+        FindEntityRequest(
+            install_root=install_root,
+            system="diplomacy",
+            name_contains="sample",
+        )
+    )
+    detail = entity_tools.describe_entity(
+        DescribeEntityRequest(
+            install_root=install_root,
+            system="diplomacy",
+            name="sample_cb",
+        )
+    )
+    links = entity_tools.list_entity_links(
+        DescribeEntityRequest(
+            install_root=install_root,
+            system="diplomacy",
+            name="sample_cb",
+        )
+    )
+
+    assert [system.name for system in systems] == [
+        "economy",
+        "diplomacy",
+        "government",
+        "religion",
+        "map",
+    ]
+    assert [summary.name for summary in find_result.entities] == ["sample_cb"]
+    assert find_result.entities[0].entity_kind == "casus_belli"
+    assert detail.summary.system == "diplomacy"
+    assert detail.summary.entity_kind == "casus_belli"
+    assert detail.summary.name == "sample_cb"
+    assert detail.summary.group == "sample_goal"
+    assert any(
+        field.name == "war_goal_type" and field.value == "sample_goal"
+        for field in detail.fields
+    )
+    assert {(reference.role, reference.target_name) for reference in links} == {
+        ("wargoal", "sample_goal"),
+        ("peace_treaty", "peace_example"),
+        ("country_interaction", "country_link"),
+    }
 
 
 def test_get_system_report_delegates_to_core_facade(
@@ -848,6 +922,14 @@ def test_server_dispatches_registered_tools(tmp_path: Path) -> None:
             "primary_entity_kind": "good",
         },
         {
+            "name": "diplomacy",
+            "description": (
+                "Browse casus belli definitions with linked wargoals, peace treaties, "
+                "and country interactions."
+            ),
+            "primary_entity_kind": "casus_belli",
+        },
+        {
             "name": "government",
             "description": (
                 "Browse government types with linked reforms, laws, and default estates."
@@ -1188,6 +1270,34 @@ def _make_synthetic_entity_install(root: Path) -> Path:
     _write_file(
         install_root / "game" / "in_game" / "common" / "attribute_columns" / "columns.txt",
         "market = { name = { widget = default_text_column } }\n",
+    )
+    _write_file(
+        install_root / "game" / "in_game" / "common" / "casus_belli" / "sample.txt",
+        "sample_cb = { war_goal_type = sample_goal }\n",
+    )
+    _write_file(
+        install_root / "game" / "in_game" / "common" / "wargoals" / "sample.txt",
+        "sample_goal = { type = superiority attacker = { conquer_cost = 1 } }\n",
+    )
+    _write_file(
+        install_root / "game" / "in_game" / "common" / "peace_treaties" / "sample.txt",
+        (
+            "peace_example = {\n"
+            "    potential = { scope:war = { casus_belli ?= casus_belli:sample_cb } }\n"
+            "    effect = { make_subject_of = { type = subject_type:sample_subject } }\n"
+            "}\n"
+        ),
+    )
+    _write_file(
+        install_root / "game" / "in_game" / "common" / "subject_types" / "sample.txt",
+        "sample_subject = { level = 1 allow_subjects = no }\n",
+    )
+    _write_file(
+        install_root / "game" / "in_game" / "common" / "country_interactions" / "sample.txt",
+        (
+            "country_link = { effect = { add_casus_belli = { "
+            "type = casus_belli:sample_cb } } }\n"
+        ),
     )
     return install_root
 
