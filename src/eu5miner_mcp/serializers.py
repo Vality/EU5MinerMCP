@@ -78,6 +78,8 @@ def serialize_server_description(
     *,
     status_message: str,
 ) -> dict[str, JSONValue]:
+    descriptor_names = _validate_server_description_contract(runtime, descriptors)
+    write_tool_names = set(runtime.write_tool_names)
     return {
         "status": status_message,
         "display_name": runtime.display_name,
@@ -85,7 +87,7 @@ def serialize_server_description(
         "server_name": runtime.server_name,
         "version": runtime.version,
         "transports": list(runtime.transports),
-        "tool_names": list(runtime.tool_names),
+        "tool_names": list(descriptor_names),
         "tool_count": runtime.tool_count,
         "write_tool_names": list(runtime.write_tool_names),
         "write_tool_count": runtime.write_tool_count,
@@ -94,7 +96,7 @@ def serialize_server_description(
             {
                 "name": descriptor.name,
                 "description": descriptor.description,
-                "requires_confirmation": descriptor.name in runtime.write_tool_names,
+                "requires_confirmation": descriptor.name in write_tool_names,
                 "input_schema": cast(JSONValue, descriptor.input_schema),
             }
             for descriptor in descriptors
@@ -386,3 +388,46 @@ def _serialize_applied_mod_write(write: AppliedModWrite) -> dict[str, JSONValue]
 
 def _display_subpath(subpath: Path) -> Path:
     return subpath if str(subpath) not in {"", "."} else Path(".")
+
+
+def _validate_server_description_contract(
+    runtime: ServerRuntimeLike,
+    descriptors: Sequence[ToolDescriptor],
+) -> tuple[str, ...]:
+    if runtime.tool_count != len(runtime.tool_names):
+        raise ValueError("Runtime tool_count does not match runtime tool_names")
+    if runtime.write_tool_count != len(runtime.write_tool_names):
+        raise ValueError(
+            "Runtime write_tool_count does not match runtime write_tool_names"
+        )
+
+    descriptor_names = tuple(descriptor.name for descriptor in descriptors)
+    duplicate_names = _find_duplicate_names(descriptor_names)
+    if duplicate_names:
+        raise ValueError(
+            "Duplicate MCP tool names in descriptor registry: "
+            + ", ".join(duplicate_names)
+        )
+    if descriptor_names != runtime.tool_names:
+        raise ValueError("Server descriptor registry does not match runtime tool_names")
+
+    missing_write_tool_names = [
+        name for name in runtime.write_tool_names if name not in descriptor_names
+    ]
+    if missing_write_tool_names:
+        raise ValueError(
+            "Runtime write_tool_names are not present in descriptors: "
+            + ", ".join(missing_write_tool_names)
+        )
+
+    return descriptor_names
+
+
+def _find_duplicate_names(names: Sequence[str]) -> tuple[str, ...]:
+    seen: set[str] = set()
+    duplicates: list[str] = []
+    for name in names:
+        if name in seen and name not in duplicates:
+            duplicates.append(name)
+        seen.add(name)
+    return tuple(duplicates)

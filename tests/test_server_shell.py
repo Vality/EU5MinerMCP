@@ -12,7 +12,7 @@ import eu5miner_mcp.tools.mods as mod_tools
 import eu5miner_mcp.tools.systems as systems_tools
 from eu5miner_mcp.__main__ import main as package_main
 from eu5miner_mcp.cli import main
-from eu5miner_mcp.models import ToolDescriptor
+from eu5miner_mcp.models import RegisteredTool, ToolDescriptor, ToolResponse, closed_object_schema
 from eu5miner_mcp.serializers import (
     serialize_entity_detail,
     serialize_entity_links,
@@ -20,7 +20,7 @@ from eu5miner_mcp.serializers import (
     serialize_status_message,
     serialize_system_list,
 )
-from eu5miner_mcp.server import build_server, build_server_runtime, build_startup_message
+from eu5miner_mcp.server import MCPServer, build_server, build_server_runtime, build_startup_message
 from eu5miner_mcp.tools import (
     describe_entity_tools,
     describe_file_tools,
@@ -85,6 +85,7 @@ def test_serialize_server_description_includes_runtime_and_tools() -> None:
     assert payload["write_tool_names"] == ["apply-mod-update"]
     assert payload["write_tool_count"] == 1
     assert payload["stdio_instructions"] == runtime.build_stdio_instructions()
+    assert payload["tool_names"] == [tool["name"] for tool in payload["tools"]]
     tools = payload["tools"]
     assert isinstance(tools, list)
     assert any(
@@ -101,6 +102,21 @@ def test_serialize_server_description_includes_runtime_and_tools() -> None:
     )
 
 
+def test_serialize_server_description_rejects_runtime_descriptor_mismatch() -> None:
+    server = build_server()
+    runtime = build_server_runtime(server)
+
+    with pytest.raises(
+        ValueError,
+        match="Server descriptor registry does not match runtime tool_names",
+    ):
+        serialize_server_description(
+            runtime,
+            tuple(reversed(server.describe_tools())),
+            status_message=build_startup_message(server),
+        )
+
+
 def test_build_server_runtime_exposes_package_version_and_transports() -> None:
     runtime = build_server_runtime()
 
@@ -114,6 +130,54 @@ def test_build_server_runtime_exposes_package_version_and_transports() -> None:
     assert runtime.write_tool_count == 1
     assert runtime.tool_names[0] == "inspect-install"
     assert runtime.tool_names[-1] == "describe-server"
+
+
+def test_build_server_runtime_rejects_duplicate_tool_names() -> None:
+    duplicate_server = MCPServer(
+        tools=(
+            RegisteredTool(
+                descriptor=ToolDescriptor(
+                    name="duplicate-tool",
+                    description="First duplicate tool.",
+                    input_schema=closed_object_schema(),
+                ),
+                invoke=lambda arguments=None: ToolResponse(
+                    text="first",
+                    structured_content={},
+                ),
+            ),
+            RegisteredTool(
+                descriptor=ToolDescriptor(
+                    name="duplicate-tool",
+                    description="Second duplicate tool.",
+                    input_schema=closed_object_schema(),
+                ),
+                invoke=lambda arguments=None: ToolResponse(
+                    text="second",
+                    structured_content={},
+                ),
+            ),
+        )
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Duplicate MCP tool names in registry: duplicate-tool",
+    ):
+        build_server_runtime(duplicate_server)
+
+
+def test_build_server_runtime_rejects_unregistered_write_tool_name(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "eu5miner_mcp.server._WRITE_TOOL_NAMES",
+        ("apply-mod-update", "missing-write-tool"),
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Configured write tools are not registered: missing-write-tool",
+    ):
+        build_server_runtime(build_server())
 
 
 def test_server_runtime_builds_stdio_instructions_from_registry() -> None:

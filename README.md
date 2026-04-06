@@ -17,6 +17,7 @@ The current surface is intentionally narrow: the first real MCP slices wrap stab
 - The active registered tools are `inspect-install`, `list-files`, `list-systems`, `report-system`, `list-entity-systems`, `find-entity`, `describe-entity`, `list-entity-links`, `plan-mod-update`, `apply-mod-update`, and `describe-server`.
 - The CLI can still print the startup status line, describe the registered tools with `--describe`, and now serve the same registry over real stdio MCP transport with `--stdio`.
 - MCP clients can now call `describe-server` to retrieve display, server, and package names, version, available transports, tool names and counts, write-tool names and counts, stdio instructions, and the live registered tool descriptors from the same shared registry the CLI and stdio transport use.
+- The registry-backed runtime layer now fails fast if duplicate tool names, missing configured write tools, or mismatched `describe-server` descriptor ordering would otherwise publish inconsistent contract metadata.
 - Broader cross-entity graph tooling is still future work.
 - Parsing, VFS, and domain logic should continue to live in the core `eu5miner` library.
 

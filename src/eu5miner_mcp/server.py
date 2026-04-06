@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as package_version
@@ -101,15 +101,18 @@ def build_server() -> MCPServer:
 
 def build_server_runtime(server: MCPServer | None = None) -> ServerRuntime:
     active_server = build_server() if server is None else server
+    descriptors = active_server.describe_tools()
+    tool_names = _validate_tool_registry_contract(
+        descriptors,
+        write_tool_names=_WRITE_TOOL_NAMES,
+    )
     return ServerRuntime(
         display_name=_SERVER_DISPLAY_NAME,
         package_name=_PACKAGE_NAME,
         server_name=_SERVER_NAME,
         version=_resolve_package_version(),
         transports=_SUPPORTED_TRANSPORTS,
-        tool_names=tuple(
-            descriptor.name for descriptor in active_server.describe_tools()
-        ),
+        tool_names=tool_names,
         write_tool_names=_WRITE_TOOL_NAMES,
     )
 
@@ -129,6 +132,36 @@ def build_startup_message(server: MCPServer | None = None) -> str:
 
 def run_server() -> str:
     return build_startup_message(build_server())
+
+
+def _validate_tool_registry_contract(
+    descriptors: Sequence[ToolDescriptor],
+    *,
+    write_tool_names: Sequence[str],
+) -> tuple[str, ...]:
+    tool_names: list[str] = []
+    seen: set[str] = set()
+    duplicate_names: list[str] = []
+    for descriptor in descriptors:
+        tool_names.append(descriptor.name)
+        if descriptor.name in seen and descriptor.name not in duplicate_names:
+            duplicate_names.append(descriptor.name)
+        seen.add(descriptor.name)
+    if duplicate_names:
+        raise ValueError(
+            "Duplicate MCP tool names in registry: " + ", ".join(duplicate_names)
+        )
+
+    missing_write_tool_names = [
+        name for name in write_tool_names if name not in seen
+    ]
+    if missing_write_tool_names:
+        raise ValueError(
+            "Configured write tools are not registered: "
+            + ", ".join(missing_write_tool_names)
+        )
+
+    return tuple(tool_names)
 
 
 def _resolve_package_version() -> str:
