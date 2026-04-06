@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-The current supported line is `0.5.x`.
+The current supported line is `0.6.x`.
 
 This repository is still a small public-preview project, so security support is best effort and focused on the latest preview state on `main`.
 

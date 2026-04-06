@@ -4,7 +4,7 @@ This roadmap is intentionally narrow. The MCP repo should stay focused on server
 
 ## Current Baseline
 
-The current preview baseline now includes:
+The current `0.6.0` preview baseline now includes:
 
 - repo and package alignment with the core library workflow
 - a launchable typed MCP shell and CLI entrypoint
@@ -17,7 +17,7 @@ The current preview baseline now includes:
 - read-only diplomacy war-flow, diplomacy-graph, and religion link reporting over representative install files without MCP-local parser logic
 - mod update planning and apply workflows surfaced through the MCP repo without duplicating parser or VFS logic
 
-That checked-in state now covers the completed step-2 grouped-helper breadth through diplomacy and religion. The step-3 coherence sweep should keep the README, roadmap, changelog, and spec index aligned to that shipped surface. The next major phase after this documentation pass is full validation, build, test, and preview release readiness, not another helper-breadth expansion.
+That checked-in state now covers the coordinated `0.6.0` preview surface, including the completed step-2 grouped-helper breadth through diplomacy and religion. After this release prep, follow-on work should keep validation, build, test, and contract coherence aligned to that shipped surface rather than widening helper breadth again immediately.
 
 ## Next Recommended Order
 

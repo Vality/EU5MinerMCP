@@ -2,7 +2,7 @@
 
 EU5MinerMCP is an unofficial MCP application repo for exposing selected `eu5miner` capabilities through a thin server surface for Europa Universalis V installs and mods.
 
-Release `0.5.0` is the first public preview release.
+Release `0.6.0` is the current coordinated public preview release.
 
 EU5MinerMCP is not affiliated with Paradox Interactive or the Europa Universalis franchise.
 
@@ -12,7 +12,7 @@ The current surface is intentionally narrow: the first real MCP slices wrap stab
 
 ## Status
 
-- The `0.5.x` line should be treated as a public preview rather than a stable `1.0` API.
+- The `0.6.x` line should be treated as a public preview rather than a stable `1.0` API.
 - The current implementation is a typed MCP server shell over stable `eu5miner` inspection, VFS, entity-browsing, grouped helper, and mod workflow seams.
 - The active registered tools are `inspect-install`, `list-files`, `list-systems`, `report-system`, `list-entity-systems`, `find-entity`, `describe-entity`, `list-entity-links`, `report-diplomacy-war-flow`, `report-diplomacy-graph`, `report-religion-links`, `plan-mod-update`, `apply-mod-update`, and `describe-server`.
 - The CLI can still print the startup status line, describe the registered tools with `--describe`, and now serve the same registry over real stdio MCP transport with `--stdio`.
@@ -21,9 +21,9 @@ The current surface is intentionally narrow: the first real MCP slices wrap stab
 - The grouped-helper seam now includes shipped diplomacy war-flow, diplomacy-graph, and religion link reports over representative install files only.
 - Parsing, VFS, and domain logic should continue to live in the core `eu5miner` library.
 
-The checked-in entity-browsing slice now depends on the current `eu5miner` mainline revision that includes the inspection entity seam.
+The checked-in repo is now aligned to the coordinated `eu5miner` `v0.6.0` release tag instead of a moving mainline revision.
 
-The checked-in MCP repo now also reflects the completed step-2 grouped-helper breadth for the current preview line: `report-diplomacy-war-flow`, `report-diplomacy-graph`, and `report-religion-links` are the shipped helper-tool families, and that scope remains the explicit preview boundary for helper-specific MCP work. The current step-3 follow-on is coherence and release readiness: keep the full validation, build, and test gate green, keep docs truthful to the live registry, and avoid widening helper scope again before the next preview cut.
+The `0.6.0` preview line reflects the completed step-2 grouped-helper breadth for the current MCP surface: `report-diplomacy-war-flow`, `report-diplomacy-graph`, and `report-religion-links` are the shipped helper-tool families, and that scope remains the explicit preview boundary for helper-specific MCP work. Follow-on work should keep validation, build, test, and contract coherence green before widening helper scope again.
 
 ## Current Shell Behavior
 
@@ -63,6 +63,8 @@ Initialize or refresh the centralized environment with:
 ```
 
 That script points `UV_PROJECT_ENVIRONMENT` at `%USERPROFILE%\.venvs\EU5MinerMCP` and runs `uv sync --extra dev` there.
+
+For local workspace validation, `pyproject.toml` also uses `[tool.uv.sources]` to resolve `eu5miner` from `../EU5Miner` while keeping the published dependency pinned to the coordinated `v0.6.0` release tag.
 
 If you need a one-off local setup instead, install development dependencies with `uv`:
 

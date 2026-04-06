@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "eu5miner-mcp"
-version = "0.5.0"
+version = "0.6.0"
 description = "Public-preview MCP shell built on the EU5Miner library"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -13,7 +13,7 @@ authors = [
   { name = "Val G and GitHub Copilot" },
 ]
 dependencies = [
-  "eu5miner @ git+https://github.com/Vality/EU5Miner.git@main",
+  "eu5miner @ git+https://github.com/Vality/EU5Miner.git@v0.6.0",
   "mcp>=1.27.0,<2",
 ]
 
@@ -26,6 +26,9 @@ dev = [
 
 [project.scripts]
 eu5miner-mcp = "eu5miner_mcp.cli:main"
+
+[tool.uv.sources]
+eu5miner = { path = "../EU5Miner" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/eu5miner_mcp"]
