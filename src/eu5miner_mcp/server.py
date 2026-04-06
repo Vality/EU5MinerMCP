@@ -20,6 +20,7 @@ _PACKAGE_NAME = "eu5miner-mcp"
 _SERVER_NAME = "eu5miner-mcp"
 _SERVER_DISPLAY_NAME = "EU5MinerMCP"
 _SUPPORTED_TRANSPORTS = ("local-shell", "stdio")
+_WRITE_TOOL_NAMES = ("apply-mod-update",)
 
 
 @dataclass(frozen=True)
@@ -53,16 +54,23 @@ class ServerRuntime:
     version: str
     transports: tuple[str, ...]
     tool_names: tuple[str, ...]
+    write_tool_names: tuple[str, ...]
 
     @property
     def tool_count(self) -> int:
         return len(self.tool_names)
 
+    @property
+    def write_tool_count(self) -> int:
+        return len(self.write_tool_names)
+
     def build_stdio_instructions(self) -> str:
         tool_names = ", ".join(self.tool_names)
+        write_tools = ", ".join(self.write_tool_names)
         return (
             f"{self.display_name} {self.version} serves the current eu5miner-backed "
-            f"tool registry over stdio. Available tools ({self.tool_count}): {tool_names}."
+            f"tool registry over stdio. Available tools ({self.tool_count}): {tool_names}. "
+            f"Write tools require explicit confirm=true: {write_tools}."
         )
 
 
@@ -89,6 +97,7 @@ def build_server_runtime(server: MCPServer | None = None) -> ServerRuntime:
         tool_names=tuple(
             descriptor.name for descriptor in active_server.describe_tools()
         ),
+        write_tool_names=_WRITE_TOOL_NAMES,
     )
 
 
@@ -96,10 +105,12 @@ def build_startup_message(server: MCPServer | None = None) -> str:
     runtime = build_server_runtime(server)
     tool_names = ", ".join(runtime.tool_names)
     transports = ", ".join(runtime.transports)
+    write_tools = ", ".join(runtime.write_tool_names)
     return (
         f"{runtime.display_name} {runtime.version} server ready. "
         f"Available transports: {transports}. "
-        f"Tools ({runtime.tool_count}): {tool_names}."
+        f"Tools ({runtime.tool_count}): {tool_names}. "
+        f"Write tools require explicit confirm=true: {write_tools}."
     )
 
 

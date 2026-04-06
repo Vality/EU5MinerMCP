@@ -137,14 +137,19 @@ def _parse_plan_mod_update_request(
     arguments: Mapping[str, object] | None,
 ) -> PlanModUpdateRequest:
     mapping = arguments or {}
-    return _build_plan_mod_update_request(mapping)
+    return _build_plan_mod_update_request(mapping, tool_name="plan-mod-update")
 
 
 def _parse_apply_mod_update_request(
     arguments: Mapping[str, object] | None,
 ) -> ApplyModUpdateRequest:
     mapping = arguments or {}
-    plan_request = _build_plan_mod_update_request(mapping)
+    plan_request = _build_plan_mod_update_request(
+        mapping,
+        tool_name="apply-mod-update",
+        allowed_extra_fields={"overwrite", "confirm"},
+    )
+    _require_apply_confirmation(mapping.get("confirm", False))
     overwrite = _bool_value(mapping.get("overwrite", True), field_name="overwrite")
     return ApplyModUpdateRequest(
         phase=plan_request.phase,
@@ -158,20 +163,25 @@ def _parse_apply_mod_update_request(
     )
 
 
-def _build_plan_mod_update_request(mapping: Mapping[str, object]) -> PlanModUpdateRequest:
+def _build_plan_mod_update_request(
+    mapping: Mapping[str, object],
+    *,
+    tool_name: str,
+    allowed_extra_fields: set[str] | None = None,
+) -> PlanModUpdateRequest:
+    base_allowed_fields = {
+        "install_root",
+        "mod_root",
+        "later_mod_roots",
+        "phase",
+        "subtree",
+        "intended_paths",
+        "content_by_relative_path",
+    }
     reject_unknown_arguments(
         mapping,
-        tool_name="plan-mod-update",
-        allowed_fields={
-            "install_root",
-            "mod_root",
-            "later_mod_roots",
-            "phase",
-            "subtree",
-            "intended_paths",
-            "content_by_relative_path",
-            "overwrite",
-        },
+        tool_name=tool_name,
+        allowed_fields=base_allowed_fields | (allowed_extra_fields or set()),
     )
     phase_value = mapping.get("phase")
     if not isinstance(phase_value, str):
@@ -252,6 +262,15 @@ def _bool_value(value: object, *, field_name: str) -> bool:
     raise TypeError(f"{field_name} must be a boolean")
 
 
+def _require_apply_confirmation(value: object) -> None:
+    confirmed = _bool_value(value, field_name="confirm")
+    if not confirmed:
+        raise ValueError(
+            "apply-mod-update writes files under mod_root; review plan-mod-update "
+            "first, then retry with confirm=true"
+        )
+
+
 def _coerce_path(value: object) -> Path:
     if isinstance(value, Path):
         return value
@@ -319,7 +338,10 @@ _PLAN_MOD_UPDATE_TOOL = RegisteredTool(
 _APPLY_MOD_UPDATE_TOOL = RegisteredTool(
     descriptor=ToolDescriptor(
         name="apply-mod-update",
-        description="Apply a planned mod update over the core mod workflow API.",
+        description=(
+            "Apply a planned mod update over the core mod workflow API. "
+            "Requires confirm=true because this writes files under mod_root."
+        ),
         input_schema=closed_object_schema(
             properties={
                 "install_root": {
@@ -365,6 +387,14 @@ _APPLY_MOD_UPDATE_TOOL = RegisteredTool(
                     "default": True,
                     "description": (
                         "Whether existing target files may be overwritten. Defaults to true."
+                    ),
+                },
+                "confirm": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": (
+                        "Required for live writes. Set to true after reviewing "
+                        "plan-mod-update output."
                     ),
                 },
             },

@@ -39,5 +39,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"Registered tools ({runtime.tool_count}):")
         for descriptor in server.describe_tools():
             print(f"- {descriptor.name}: {descriptor.description}")
+        print(
+            "Write tools requiring confirmation: "
+            f"{', '.join(runtime.write_tool_names)} (pass confirm=true after reviewing "
+            "plan-mod-update output)"
+        )
 
     return 0

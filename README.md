@@ -34,9 +34,11 @@ The preview shell currently exposes a narrow tool registry:
 - `describe-entity`: return the summary, fields, and linked references for one named entity
 - `list-entity-links`: return only the linked references for one named entity
 - `plan-mod-update`: plan a mod update and return both the formatted report and structured write metadata without applying changes
-- `apply-mod-update`: apply a mod update and return both the formatted report and structured materialization result
+- `apply-mod-update`: apply a mod update and return both the formatted report and structured materialization result; requires `confirm=true` because it writes files under the target mod root
 
 The entity-browsing slice is intentionally narrow. It wraps the core `eu5miner.inspection` browseable subset instead of inventing a generic graph API in the MCP layer, so the current real entity tools cover `economy` goods, `government` government types, `religion` religions, and `map` locations. The `list-entity-links` tool is only a convenience view over the same core reference list already returned by `describe-entity`; it does not introduce separate graph traversal behavior in the MCP layer.
+
+The mod workflow is also intentionally conservative at the MCP boundary: `plan-mod-update` remains the dry-run entrypoint, and `apply-mod-update` now requires an explicit `confirm=true` argument so hosted or interactive clients do not trigger writes accidentally.
 
 At this stage the package is best understood as a thin typed MCP-facing server and CLI entrypoint over a narrow inspection, entity-browsing, and mod workflow surface, not as a broad production MCP integration.
 

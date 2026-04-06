@@ -41,6 +41,7 @@ def test_build_startup_message_lists_real_tool_names() -> None:
     assert f"EU5MinerMCP {runtime.version} server ready." in message
     assert "Available transports: local-shell, stdio." in message
     assert f"Tools ({runtime.tool_count}):" in message
+    assert "Write tools require explicit confirm=true: apply-mod-update." in message
     assert "apply-mod-update" in message
     assert "describe-entity" in message
     assert "find-entity" in message
@@ -70,6 +71,8 @@ def test_build_server_runtime_exposes_package_version_and_transports() -> None:
     assert runtime.version
     assert runtime.transports == ("local-shell", "stdio")
     assert runtime.tool_count == len(runtime.tool_names)
+    assert runtime.write_tool_names == ("apply-mod-update",)
+    assert runtime.write_tool_count == 1
     assert runtime.tool_names[0] == "inspect-install"
 
 
@@ -80,6 +83,7 @@ def test_server_runtime_builds_stdio_instructions_from_registry() -> None:
 
     assert f"EU5MinerMCP {runtime.version}" in instructions
     assert f"Available tools ({runtime.tool_count}):" in instructions
+    assert "Write tools require explicit confirm=true: apply-mod-update." in instructions
     assert "list-systems" in instructions
     assert "describe-entity" in instructions
 
@@ -215,6 +219,14 @@ def test_tool_descriptors_publish_runtime_argument_contracts() -> None:
         == 1
     )
     assert apply_schema.input_schema["properties"]["overwrite"]["default"] is True
+    assert apply_schema.input_schema["properties"]["confirm"] == {
+        "type": "boolean",
+        "default": False,
+        "description": (
+            "Required for live writes. Set to true after reviewing plan-mod-update "
+            "output."
+        ),
+    }
 
 
 def test_describe_entity_tools_expose_real_entity_browsing_slice() -> None:
@@ -525,6 +537,43 @@ def test_apply_mod_update_respects_no_overwrite(tmp_path: Path) -> None:
     assert (mod_root / "in_game" / override_path).read_text(encoding="utf-8") == "old\n"
 
 
+def test_apply_mod_update_requires_confirmation() -> None:
+    with pytest.raises(
+        ValueError,
+        match=(
+            "apply-mod-update writes files under mod_root; review plan-mod-update "
+            "first, then retry with confirm=true"
+        ),
+    ):
+        build_server().call_tool(
+            "apply-mod-update",
+            {
+                "mod_root": "my_mod",
+                "phase": "in_game",
+                "subtree": "common/buildings",
+                "content_by_relative_path": {"common/buildings/a.txt": "override = yes\n"},
+            },
+        )
+
+
+def test_plan_mod_update_rejects_apply_only_arguments() -> None:
+    with pytest.raises(
+        TypeError,
+        match="plan-mod-update got unexpected arguments: confirm, overwrite",
+    ):
+        build_server().call_tool(
+            "plan-mod-update",
+            {
+                "mod_root": "my_mod",
+                "phase": "in_game",
+                "subtree": "common/buildings",
+                "content_by_relative_path": {"common/buildings/a.txt": "override = yes\n"},
+                "confirm": True,
+                "overwrite": True,
+            },
+        )
+
+
 def test_server_dispatches_registered_tools(tmp_path: Path) -> None:
     install_root = _make_install_root(tmp_path / "install")
     _write_file(
@@ -588,6 +637,7 @@ def test_server_dispatches_registered_tools(tmp_path: Path) -> None:
             "phase": "in_game",
             "subtree": "common/buildings",
             "content_by_relative_path": {"common/buildings/a.txt": "applied = yes\n"},
+            "confirm": True,
         },
     )
     systems_response = server.call_tool("list-systems")
@@ -863,6 +913,11 @@ def test_cli_main_describe_prints_registered_tools(capsys) -> None:
     assert "list-entity-systems" in captured.out
     assert "plan-mod-update" in captured.out
     assert "list-systems" in captured.out
+    assert (
+        "Write tools requiring confirmation: apply-mod-update (pass confirm=true "
+        "after reviewing plan-mod-update output)"
+        in captured.out
+    )
 
 
 def test_cli_main_stdio_does_not_print_to_stdout(capsys, monkeypatch) -> None:
@@ -909,6 +964,11 @@ def test_package_main_describe_prints_registered_tools(capsys) -> None:
     assert "list-entity-systems" in captured.out
     assert "plan-mod-update" in captured.out
     assert "list-systems" in captured.out
+    assert (
+        "Write tools requiring confirmation: apply-mod-update (pass confirm=true "
+        "after reviewing plan-mod-update output)"
+        in captured.out
+    )
 
 
 def test_package_main_stdio_does_not_print_to_stdout(capsys, monkeypatch) -> None:
