@@ -19,7 +19,7 @@ from eu5miner_mcp.serializers import (
     serialize_status_message,
     serialize_system_list,
 )
-from eu5miner_mcp.server import build_server, build_startup_message
+from eu5miner_mcp.server import build_server, build_server_runtime, build_startup_message
 from eu5miner_mcp.tools import (
     describe_entity_tools,
     describe_file_tools,
@@ -36,8 +36,11 @@ from eu5miner_mcp.transport import MCPServerTransportAdapter
 
 def test_build_startup_message_lists_real_tool_names() -> None:
     message = build_startup_message()
+    runtime = build_server_runtime()
 
-    assert "EU5MinerMCP server ready." in message
+    assert f"EU5MinerMCP {runtime.version} server ready." in message
+    assert "Available transports: local-shell, stdio." in message
+    assert f"Tools ({runtime.tool_count}):" in message
     assert "apply-mod-update" in message
     assert "describe-entity" in message
     assert "find-entity" in message
@@ -56,6 +59,29 @@ def test_serialize_status_message_includes_tool_names() -> None:
         "status": message,
         "tools": ["inspect-install", "list-systems"],
     }
+
+
+def test_build_server_runtime_exposes_package_version_and_transports() -> None:
+    runtime = build_server_runtime()
+
+    assert runtime.display_name == "EU5MinerMCP"
+    assert runtime.package_name == "eu5miner-mcp"
+    assert runtime.server_name == "eu5miner-mcp"
+    assert runtime.version
+    assert runtime.transports == ("local-shell", "stdio")
+    assert runtime.tool_count == len(runtime.tool_names)
+    assert runtime.tool_names[0] == "inspect-install"
+
+
+def test_server_runtime_builds_stdio_instructions_from_registry() -> None:
+    runtime = build_server_runtime()
+
+    instructions = runtime.build_stdio_instructions()
+
+    assert f"EU5MinerMCP {runtime.version}" in instructions
+    assert f"Available tools ({runtime.tool_count}):" in instructions
+    assert "list-systems" in instructions
+    assert "describe-entity" in instructions
 
 
 def test_serialize_entity_detail_includes_fields_and_references() -> None:
@@ -753,6 +779,17 @@ def test_transport_adapter_lists_sdk_tools_from_internal_registry() -> None:
     assert tools[0].inputSchema == describe_install_tools()[0].input_schema
 
 
+def test_transport_adapter_builds_versioned_sdk_initialization_metadata() -> None:
+    adapter = MCPServerTransportAdapter(build_server())
+    runtime = build_server_runtime()
+
+    initialization_options = adapter.build_sdk_server().create_initialization_options()
+
+    assert initialization_options.server_name == runtime.server_name
+    assert initialization_options.server_version == runtime.version
+    assert initialization_options.instructions == runtime.build_stdio_instructions()
+
+
 def test_transport_adapter_wraps_tool_result_as_sdk_payload() -> None:
     adapter = MCPServerTransportAdapter(build_server())
 
@@ -812,7 +849,12 @@ def test_transport_adapter_rejects_unexpected_tool_arguments() -> None:
 def test_cli_main_describe_prints_registered_tools(capsys) -> None:
     assert main(["--describe"]) == 0
     captured = capsys.readouterr()
-    assert "EU5MinerMCP server ready." in captured.out
+    runtime = build_server_runtime()
+    assert f"EU5MinerMCP {runtime.version} server ready." in captured.out
+    assert "Server name: eu5miner-mcp" in captured.out
+    assert f"Package version: {runtime.version}" in captured.out
+    assert "Available transports: local-shell, stdio" in captured.out
+    assert f"Registered tools ({runtime.tool_count}):" in captured.out
     assert "apply-mod-update" in captured.out
     assert "describe-entity" in captured.out
     assert "find-entity" in captured.out
@@ -853,7 +895,12 @@ def test_cli_main_stdio_does_not_print_to_stdout(capsys, monkeypatch) -> None:
 def test_package_main_describe_prints_registered_tools(capsys) -> None:
     assert package_main(["--describe"]) == 0
     captured = capsys.readouterr()
-    assert "EU5MinerMCP server ready." in captured.out
+    runtime = build_server_runtime()
+    assert f"EU5MinerMCP {runtime.version} server ready." in captured.out
+    assert "Server name: eu5miner-mcp" in captured.out
+    assert f"Package version: {runtime.version}" in captured.out
+    assert "Available transports: local-shell, stdio" in captured.out
+    assert f"Registered tools ({runtime.tool_count}):" in captured.out
     assert "apply-mod-update" in captured.out
     assert "describe-entity" in captured.out
     assert "find-entity" in captured.out

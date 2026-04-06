@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from collections.abc import Sequence
 
-from eu5miner_mcp.server import build_server, build_startup_message
+from eu5miner_mcp.server import build_server, build_server_runtime, build_startup_message
 from eu5miner_mcp.transport import run_stdio_server
 
 
@@ -25,6 +25,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     server = build_server()
+    runtime = build_server_runtime(server)
 
     if args.stdio:
         return run_stdio_server(server)
@@ -32,6 +33,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(build_startup_message(server))
 
     if args.describe:
+        print(f"Server name: {runtime.server_name}")
+        print(f"Package version: {runtime.version}")
+        print(f"Available transports: {', '.join(runtime.transports)}")
+        print(f"Registered tools ({runtime.tool_count}):")
         for descriptor in server.describe_tools():
             print(f"- {descriptor.name}: {descriptor.description}")
 

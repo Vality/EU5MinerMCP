@@ -11,14 +11,15 @@ from mcp.server.stdio import stdio_server
 from mcp.types import CallToolResult, TextContent, Tool
 
 from eu5miner_mcp.models import ToolResponse
-from eu5miner_mcp.server import MCPServer, build_server
-
-_SERVER_NAME = "eu5miner-mcp"
+from eu5miner_mcp.server import MCPServer, ServerRuntime, build_server, build_server_runtime
 
 
 class MCPServerTransportAdapter:
     def __init__(self, server: MCPServer) -> None:
         self._server = server
+
+    def describe_runtime(self) -> ServerRuntime:
+        return build_server_runtime(self._server)
 
     def list_tools(self) -> list[Tool]:
         return [
@@ -43,7 +44,12 @@ class MCPServerTransportAdapter:
         return _success_result(response)
 
     def build_sdk_server(self) -> Server[Any]:
-        sdk_server: Server[Any] = Server(_SERVER_NAME)
+        runtime = self.describe_runtime()
+        sdk_server: Server[Any] = Server(
+            runtime.server_name,
+            version=runtime.version,
+            instructions=runtime.build_stdio_instructions(),
+        )
 
         async def handle_list_tools() -> list[Tool]:
             return self.list_tools()
