@@ -27,9 +27,6 @@ dev = [
 [project.scripts]
 eu5miner-mcp = "eu5miner_mcp.cli:main"
 
-[tool.uv.sources]
-eu5miner = { path = "../EU5Miner" }
-
 [tool.hatch.build.targets.wheel]
 packages = ["src/eu5miner_mcp"]
 
