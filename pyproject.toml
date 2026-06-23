@@ -13,7 +13,7 @@ authors = [
   { name = "Val G and GitHub Copilot" },
 ]
 dependencies = [
-  "eu5miner @ git+https://github.com/Vality/EU5Miner.git@v0.6.0",
+  "eu5miner @ git+https://github.com/Vality/EU5Miner.git@v0.6.1",
   "mcp>=1.27.0,<2",
 ]
 
